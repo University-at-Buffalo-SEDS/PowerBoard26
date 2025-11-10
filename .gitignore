@@ -3,3 +3,5 @@ mx.scratch
 /.settings
 /.vscode
 .github/.DS_Store
+
+.DS_Store
