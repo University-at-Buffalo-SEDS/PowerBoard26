@@ -76,21 +76,6 @@ void rx_asynchronous(const uint8_t *bytes, size_t len) {
   seds_router_rx_serialized_packet_to_queue(g_router.r, bytes, len);
 }
 
-/* ---------------- Local endpoint handler (SD_CARD) ---------------- */
-SedsResult on_sd_packet(const SedsPacketView *pkt, void *user) {
-  (void)user;
-
-  /* TODO: Implement the saving to SD logic*/
-  char buf[seds_pkt_to_string_len(pkt)];
-  SedsResult s = seds_pkt_to_string(pkt, buf, sizeof(buf));
-  if (s == SEDS_OK) {
-    printf("on_sd_packet: %s\r\n", buf);
-  } else {
-    printf("on_sd_packet: seds_pkt_to_string failed (%d)\r\n", s);
-  }
-  return s;
-}
-
 /* ---------------- Router init (idempotent) ---------------- */
 SedsResult init_telemetry_router(void) {
 #ifndef TELEMETRY_ENABLED
@@ -111,9 +96,7 @@ SedsResult init_telemetry_router(void) {
     }
   }
   const SedsLocalEndpointDesc locals[] = {
-      {.endpoint = SEDS_EP_SD_CARD,
-       .packet_handler = on_sd_packet,
-       .user = NULL},
+    
   };
 
   SedsRouter *r =
