@@ -26,6 +26,7 @@
 #include "ux_device_class_cdc_acm.h"
 #include <stdint.h>
 #include <stdio.h>
+#include "can_bus.h"
 
 extern UX_SLAVE_CLASS_CDC_ACM *cdc_acm;
 
@@ -108,6 +109,7 @@ int main(void)
   MX_I2C2_Init();
   MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
+  can_bus_init(&hfdcan2);
 
   /* USER CODE END 2 */
 

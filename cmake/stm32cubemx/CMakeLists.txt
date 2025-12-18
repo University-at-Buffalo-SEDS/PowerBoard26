@@ -38,6 +38,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/tx_initialize_low_level.S
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/telemetry_thread.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/can_bus.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/telemetry.c 
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/telemetry_hooks.c 
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Core/Src/app_threadx.c
