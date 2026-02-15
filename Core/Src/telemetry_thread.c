@@ -20,7 +20,8 @@ void telemetry_thread_entry(ULONG initial_input)
 
     for (;;) {
         process_all_queues_timeout(20);
-        tx_thread_sleep(10);  // 10 ticks; adjust as needed
+        telemetry_ltc2990_update();
+        tx_thread_sleep(100);  // 100 ticks; adjust as needed
     }
 }
 
