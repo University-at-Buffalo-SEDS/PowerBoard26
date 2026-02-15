@@ -55,3 +55,5 @@ void die(const char *fmt, ...);
 #ifdef __cplusplus
 }
 #endif
+void telemetry_ltc2990_update(void);
+

@@ -29,6 +29,8 @@
 #include "PB-Threads.h"
 #include "tx_api.h"
 /* USER CODE END Includes */
+// LTC2990 driver header
+#include "ltc2990.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */

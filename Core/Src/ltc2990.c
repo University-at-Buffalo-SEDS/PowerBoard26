@@ -1,6 +1,9 @@
 #include "ltc2990.h"
 #include "main.h"
 
+// Global LTC2990 handle definition for telemetry
+LTC2990_Handle_t ltc2990_handle;
+
 
 static inline void sleep_ms(uint32_t ms)
 {
