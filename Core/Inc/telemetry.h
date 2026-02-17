@@ -44,12 +44,24 @@ SedsResult process_rx_queue(void);
 SedsResult dispatch_tx_queue_timeout(uint32_t timeout_ms);
 
 SedsResult process_rx_queue_timeout(uint32_t timeout_ms);
-
 SedsResult process_all_queues_timeout(uint32_t timeout_ms);
 
 SedsResult print_telemetry_error(int32_t error_code);
 SedsResult log_error_asyncronous(const char* fmt, ...);
 SedsResult log_error_syncronous(const char* fmt, ...);
+
+SedsResult telemetry_timesync_request(void);
+
+uint64_t telemetry_now_ms(void);
+
+uint64_t telemetry_unix_ms(void);
+uint64_t telemetry_unix_s(void);
+uint8_t  telemetry_unix_is_valid(void);
+
+// Master / GPS thread calls this:
+void telemetry_set_unix_time_ms(uint64_t unix_ms);
+
+
 void die(const char *fmt, ...);
 
 #ifdef __cplusplus
