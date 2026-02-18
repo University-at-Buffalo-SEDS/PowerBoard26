@@ -81,4 +81,6 @@ int8_t LTC2990_Write_Register(LTC2990_Handle_t *handle, uint8_t reg_address, uin
 
 extern void CDC_Transmit_Print(const char *format, ...);
 
+void telemetry_ltc2990_update(LTC2990_Handle_t *ltc2990_handle);
+
 #endif 

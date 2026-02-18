@@ -50,6 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/telemetry.c 
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/telemetry_hooks.c 
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ltc2990.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sensor_thread.c
 )
 
 # Add include paths

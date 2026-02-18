@@ -1,5 +1,7 @@
 #include "ltc2990.h"
 #include "main.h"
+#include "sedsprintf.h"
+#include "telemetry.h"
 
 // Global LTC2990 handle definition for telemetry
 LTC2990_Handle_t ltc2990_handle;
@@ -219,4 +221,11 @@ int8_t LTC2990_Write_Register(LTC2990_Handle_t *h, uint8_t reg, uint8_t data)
 
     i2c_unlock(h);
     return (st == HAL_OK) ? 0 : 1;
+}
+
+void telemetry_ltc2990_update(LTC2990_Handle_t *ltc2990_handle) {
+  float voltages[4];
+  LTC2990_Step(ltc2990_handle);
+  LTC2990_Get_Voltage(ltc2990_handle, voltages);
+  log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, voltages, 1, sizeof(float));
 }

@@ -66,6 +66,15 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
 {
   UINT ret = TX_SUCCESS;
 
+  // LTC2990 driver integration
+  static LTC2990_Handle_t ltc2990_handle;
+  static TX_MUTEX ltc2990_mutex;
+
+  // Create mutex for I2C
+  tx_mutex_create(&ltc2990_mutex, "ltc2990_mutex", TX_NO_INHERIT);
+  ltc2990_handle.i2c_mutex = &ltc2990_mutex;
+
+
   /* USER CODE BEGIN App_ThreadX_MEM_POOL */
   if (init_telemetry_router() != SEDS_OK) {
     Error_Handler();
@@ -77,26 +86,11 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
                                   sizeof(started_txt), 1);
 
 
-
-
   /* USER CODE END App_ThreadX_MEM_POOL */
 
   /* USER CODE BEGIN App_ThreadX_Init */
-  // LTC2990 driver integration
-  static LTC2990_Handle_t ltc2990_handle;
-  static TX_MUTEX ltc2990_mutex;
-
-  // Create mutex for I2C
-  tx_mutex_create(&ltc2990_mutex, "ltc2990_mutex", TX_NO_INHERIT);
-  ltc2990_handle.i2c_mutex = &ltc2990_mutex;
-
-  // Initialize LTC2990 for voltage mode
-  if (LTC2990_Init(&ltc2990_handle, &hi2c2, LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE) != 0) {
-    log_error_syncronous("LTC2990 init failed");
-    Error_Handler();
-  }
-
-  // Telemetry thread will periodically read voltages
+  create_sensor_thread(&ltc2990_handle);
+  
   create_telemetry_thread();
 
   /* USER CODE END App_ThreadX_Init */
@@ -125,12 +119,3 @@ void MX_ThreadX_Init(void)
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-#include "ltc2990.h"
-extern LTC2990_Handle_t ltc2990_handle;
-
-void telemetry_ltc2990_update(void) {
-  float voltages[4];
-  LTC2990_Step(&ltc2990_handle);
-  LTC2990_Get_Voltage(&ltc2990_handle, voltages);
-  log_telemetry_asynchronous(SEDS_DT_MESSAGE_DATA, voltages, 4, sizeof(float));
-}
