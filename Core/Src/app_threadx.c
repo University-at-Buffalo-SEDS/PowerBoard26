@@ -132,5 +132,5 @@ void telemetry_ltc2990_update(void) {
   float voltages[4];
   LTC2990_Step(&ltc2990_handle);
   LTC2990_Get_Voltage(&ltc2990_handle, voltages);
-  log_telemetry_synchronous(SEDS_DT_MESSAGE_DATA, voltages, 4, sizeof(float));
+  log_telemetry_asynchronous(SEDS_DT_MESSAGE_DATA, voltages, 4, sizeof(float));
 }
