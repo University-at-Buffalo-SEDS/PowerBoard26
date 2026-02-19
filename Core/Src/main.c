@@ -109,6 +109,11 @@ int main(void)
   MX_I2C2_Init();
   MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
+  HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
+  HAL_Delay(500);
+
+  HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
+  HAL_Delay(500);
   can_bus_init(&hfdcan2);
 
   /* USER CODE END 2 */

@@ -15,6 +15,12 @@
 static void print_data_no_telem(void *data, size_t len) {
   (void)data;
   (void)len;
+  printf("Telemetry disabled; data of length %zu dropped\n, raw data: ", len);
+  uint8_t *p = (uint8_t *)data;
+  for (size_t i = 0; i < len && i < 16; i++) {
+    printf("%02x ", p[i]);
+  }
+  printf("\n");
   // Optional: dump bytes for debug
 }
 #endif
