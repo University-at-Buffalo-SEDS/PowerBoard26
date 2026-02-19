@@ -294,10 +294,11 @@ static void MX_USB_PCD_Init(void)
   hpcd_USB_FS.Init.low_power_enable = DISABLE;
   hpcd_USB_FS.Init.lpm_enable = DISABLE;
   hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
-  if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  // if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
+  // {
+  //   Error_Handler();
+  // }
+  
   /* USER CODE BEGIN USB_Init 2 */
 
   /* USER CODE END USB_Init 2 */
@@ -536,7 +537,7 @@ int fputc(int ch, FILE *f) {
 
 /**
   * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM6 interrupt took place, inside
+  * @note   This function is called  when TIM7 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
   * a global variable "uwTick" used as application time base.
   * @param  htim : TIM handle
@@ -547,7 +548,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6)
+  if (htim->Instance == TIM7)
   {
     HAL_IncTick();
   }

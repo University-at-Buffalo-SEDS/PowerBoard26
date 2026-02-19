@@ -8,9 +8,7 @@
 
 TX_THREAD sensor_thread;
 
-#define SENSOR_THREAD_STACK_SIZE 1024u
-ULONG sensor_thread_stack[SENSOR_THREAD_STACK_SIZE / sizeof(ULONG)];
-
+#define SENSOR_THREAD_STACK_SIZE (3U *1024U)
 extern I2C_HandleTypeDef hi2c2;
 
 void sensor_thread_entry(ULONG entry_input)
@@ -30,35 +28,35 @@ void sensor_thread_entry(ULONG entry_input)
                                     sizeof(started_txt),
                                     1);
 
-                                    int boo = 0;
     for (;;) {
-        if (!boo){
-            //   HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
-                boo = 1;
-        }
+        HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
+        tx_thread_sleep(50); // 50 ticks = 0.5s if your tick is 100Hz (it is)
         telemetry_ltc2990_update(ltc2990_handle);
         // Consider sleeping/yielding so you don't peg the CPU:
         // tx_thread_sleep(1);  // or a meaningful period
     }
 }
 
-void create_sensor_thread(LTC2990_Handle_t *ltc2990_handle_ptr)
+void create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_handle_ptr)
 {
-    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
-    HAL_Delay(500);
-    
-    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
-    HAL_Delay(500);
-    UINT status = tx_thread_create(&sensor_thread,
-                                   "Sensor Thread",
-                                   sensor_thread_entry,
-                                   (ULONG)(uintptr_t)ltc2990_handle_ptr,
-                                   sensor_thread_stack,
-                                   sizeof(sensor_thread_stack),
-                                   5,
-                                   5,
-                                   TX_NO_TIME_SLICE,
-                                   TX_AUTO_START);
+     CHAR *pointer;
+
+  /* Allocate the stack for test  */
+  if (tx_byte_allocate(byte_pool, (VOID**) &pointer,
+                       SENSOR_THREAD_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
+  {
+    return TX_POOL_ERROR;
+  }
+UINT status = tx_thread_create(&sensor_thread,
+                               "Sensor Thread",
+                               sensor_thread_entry,
+                               (ULONG)(uintptr_t)ltc2990_handle_ptr,
+                               pointer,                 // stack pointer from tx_byte_allocate
+                               SENSOR_THREAD_STACK_SIZE,       // must match allocation size
+                               5,                       // priority
+                               5,                       // preemption threshold
+                               TX_NO_TIME_SLICE,
+                               TX_AUTO_START);
 
     if (status != TX_SUCCESS) {
         die("Failed to create sensor thread: %u", (unsigned)status);

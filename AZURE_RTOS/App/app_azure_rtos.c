@@ -40,7 +40,10 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+static void busy_delay(volatile uint32_t n)
+{
+  while (n--) { __NOP(); }
+}
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -89,7 +92,11 @@ VOID tx_application_define(VOID *first_unused_memory)
   if (tx_byte_pool_create(&tx_app_byte_pool, "Tx App memory pool", tx_byte_pool_buffer, TX_APP_MEM_POOL_SIZE) != TX_SUCCESS)
   {
     /* USER CODE BEGIN TX_Byte_Pool_Error */
-
+while(1)
+      {
+            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+        busy_delay(50000000); // adjust until visible
+      }
     /* USER CODE END TX_Byte_Pool_Error */
   }
   else
@@ -105,6 +112,8 @@ VOID tx_application_define(VOID *first_unused_memory)
       /* USER CODE BEGIN  App_ThreadX_Init_Error */
       while(1)
       {
+            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+  busy_delay(40000000); // adjust until visible
       }
       /* USER CODE END  App_ThreadX_Init_Error */
     }
@@ -118,7 +127,11 @@ VOID tx_application_define(VOID *first_unused_memory)
   if (tx_byte_pool_create(&ux_device_app_byte_pool, "Ux App memory pool", ux_device_byte_pool_buffer, UX_DEVICE_APP_MEM_POOL_SIZE) != TX_SUCCESS)
   {
     /* USER CODE BEGIN UX_Device_Byte_Pool_Error */
-
+while(1)
+      {
+            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+  busy_delay(3000000); // adjust until visible
+      }
     /* USER CODE END UX_Device_Byte_Pool_Error */
   }
   else
@@ -134,13 +147,14 @@ VOID tx_application_define(VOID *first_unused_memory)
       /* USER CODE BEGIN  MX_USBX_Device_Init_Error */
       while(1)
       {
+            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+        busy_delay(1000000); // adjust until visible
       }
       /* USER CODE END  MX_USBX_Device_Init_Error */
     }
 
     /* USER CODE BEGIN MX_USBX_Device_Init_Success */
-    // extern PCD_HandleTypeDef hpcd_USB_FS;
-    // HAL_PCD_Start(&hpcd_USB_FS);
+
     /* USER CODE END MX_USBX_Device_Init_Success */
   }
 

@@ -5,8 +5,7 @@
 #include "can_bus.h"
 
 TX_THREAD telemetry_thread;
-#define TELEMETRY_THREAD_STACK_SIZE 1024u
-ULONG telemetry_thread_stack[TELEMETRY_THREAD_STACK_SIZE / sizeof(ULONG)];
+#define TELEMETRY_THREAD_STACK_SIZE (4U *1024U)
 
 // How often this node requests a resync from the master:
 #define TIMESYNC_REQUEST_PERIOD_MS 2000u   // e.g. every 2 seconds
@@ -50,13 +49,23 @@ void telemetry_thread_entry(ULONG initial_input)
     }
 }
 
-void create_telemetry_thread(void)
+void create_telemetry_thread(TX_BYTE_POOL *byte_pool)
 {
+
+        CHAR *pointer;
+
+  /* Allocate the stack for test  */
+  if (tx_byte_allocate(byte_pool, (VOID**) &pointer,
+                       TELEMETRY_THREAD_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
+  {
+    return TX_POOL_ERROR;
+  }
+
     UINT status = tx_thread_create(&telemetry_thread,
                                    "Telemetry Thread",
                                    telemetry_thread_entry,
                                    0,
-                                   telemetry_thread_stack,
+                                   pointer,
                                    TELEMETRY_THREAD_STACK_SIZE,
                                    5,
                                    5,
