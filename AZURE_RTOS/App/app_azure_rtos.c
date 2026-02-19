@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "main.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -139,7 +139,8 @@ VOID tx_application_define(VOID *first_unused_memory)
     }
 
     /* USER CODE BEGIN MX_USBX_Device_Init_Success */
-
+    // extern PCD_HandleTypeDef hpcd_USB_FS;
+    // HAL_PCD_Start(&hpcd_USB_FS);
     /* USER CODE END MX_USBX_Device_Init_Success */
   }
 

@@ -339,15 +339,6 @@ static inline int cdc_in_isr(void) {
   return (__get_IPSR() != 0U);
 }
 
-/* Simple "kernel running" heuristic:
- * - Before tx_kernel_enter() returns and main thread starts,
- * tx_thread_identify() is NULL.
- * - In normal thread context, it returns the current TX_THREAD*.
- */
-static inline int cdc_kernel_running(void) {
-  return !cdc_in_isr() && (tx_thread_identify() != TX_NULL);
-}
-
 /* ------------ Mutex for multi-thread serialization ------------ */
 
 static TX_MUTEX cdc_mutex;
@@ -357,19 +348,26 @@ void cdc_printf_init(void) {
   tx_mutex_create(&cdc_mutex, "cdc_tx_mutex", TX_NO_INHERIT);
 }
 
-static void cdc_lock(void) {
-  // Don't try to lock from ISR or before the scheduler
-  if (!cdc_kernel_running()) {
-    return;
-  }
-  // We *could* use TX_NO_WAIT here, but serialization is cheap and fast
+
+extern volatile ULONG _tx_thread_system_state;
+
+static inline int tx_is_running(void)
+{
+  // Scheduler is “fully running” when system state is 0 in thread context.
+  return (__get_IPSR() == 0U) && (_tx_thread_system_state == 0U);
+}
+
+static void cdc_lock(void)
+{
+  if (!tx_is_running()) return;
   tx_mutex_get(&cdc_mutex, TX_WAIT_FOREVER);
 }
 
-static void cdc_unlock(void) {
-  if (!cdc_kernel_running()) {
-    return;
-  }
+
+
+static void cdc_unlock(void)
+{
+  if (!tx_is_running()) return;
   tx_mutex_put(&cdc_mutex);
 }
 
@@ -564,6 +562,8 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+      HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+      HAL_Delay(1000);
   }
   /* USER CODE END Error_Handler_Debug */
 }

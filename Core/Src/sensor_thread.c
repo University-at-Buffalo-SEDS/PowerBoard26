@@ -30,7 +30,12 @@ void sensor_thread_entry(ULONG entry_input)
                                     sizeof(started_txt),
                                     1);
 
+                                    int boo = 0;
     for (;;) {
+        if (!boo){
+            //   HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
+                boo = 1;
+        }
         telemetry_ltc2990_update(ltc2990_handle);
         // Consider sleeping/yielding so you don't peg the CPU:
         // tx_thread_sleep(1);  // or a meaningful period
@@ -39,6 +44,11 @@ void sensor_thread_entry(ULONG entry_input)
 
 void create_sensor_thread(LTC2990_Handle_t *ltc2990_handle_ptr)
 {
+    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
+    HAL_Delay(500);
+    
+    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
+    HAL_Delay(500);
     UINT status = tx_thread_create(&sensor_thread,
                                    "Sensor Thread",
                                    sensor_thread_entry,

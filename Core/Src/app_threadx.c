@@ -28,9 +28,8 @@
 #include "telemetry.h"
 #include "PB-Threads.h"
 #include "tx_api.h"
-/* USER CODE END Includes */
-// LTC2990 driver header
 #include "ltc2990.h"
+/* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
@@ -65,22 +64,13 @@
 UINT App_ThreadX_Init(VOID *memory_ptr)
 {
   UINT ret = TX_SUCCESS;
-
-  // LTC2990 driver integration
-  static LTC2990_Handle_t ltc2990_handle;
-  static TX_MUTEX ltc2990_mutex;
-
-  // Create mutex for I2C
-  tx_mutex_create(&ltc2990_mutex, "ltc2990_mutex", TX_NO_INHERIT);
-  ltc2990_handle.i2c_mutex = &ltc2990_mutex;
-
-
   /* USER CODE BEGIN App_ThreadX_MEM_POOL */
   if (init_telemetry_router() != SEDS_OK) {
     Error_Handler();
   }
   /* Log after router is initialized, before threads start */
-
+static LTC2990_Handle_t ltc2990_handle;
+  static TX_MUTEX ltc2990_mutex;
   char started_txt[] = "Starting Threadx Scheduler";
   log_telemetry_synchronous(SEDS_DT_MESSAGE_DATA, started_txt,
                                   sizeof(started_txt), 1);
@@ -89,9 +79,10 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   /* USER CODE END App_ThreadX_MEM_POOL */
 
   /* USER CODE BEGIN App_ThreadX_Init */
+  
   create_sensor_thread(&ltc2990_handle);
   
-  create_telemetry_thread();
+  // create_telemetry_thread();
 
   /* USER CODE END App_ThreadX_Init */
 
