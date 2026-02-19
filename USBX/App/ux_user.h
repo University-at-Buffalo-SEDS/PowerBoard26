@@ -88,7 +88,7 @@
 #define UX_USER_H
 
 /* USER CODE BEGIN 1 */
-
+#pragma GCC diagnostic ignored "-Warray-bounds"
 /* USER CODE END 1 */
 
 /* Define various build options for the USBX port.  The application should either make changes
