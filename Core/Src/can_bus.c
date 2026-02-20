@@ -433,7 +433,7 @@ static void handle_rx_frame(const can_bus_rx_frame_t *f, uint32_t now_ms) {
 void can_bus_init(FDCAN_HandleTypeDef *hfdcan) {
   g_hfdcan = hfdcan;
   // subscribers static-zeroed
-  HAL_FDCAN_ActivateNotification(hfdcan, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0);
+  HAL_FDCAN_ActivateNotification(hfdcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0);
   HAL_FDCAN_Start(hfdcan);
 
   // reset rings + reasm
@@ -596,19 +596,19 @@ void can_bus_process_rx(void) {
 //
 // IMPORTANT: ensure only one definition exists in the entire link.
 //
-// This ISR does minimal work: drains RX FIFO1 into our ring buffer.
+// This ISR does minimal work: drains RX FIFO0 into our ring buffer.
 // Reassembly and subscriber callbacks happen in can_bus_process_rx().
 
-void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan,
-                               uint32_t RxFifo1ITs) {
-  if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) == 0)
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan,
+                               uint32_t RxFifo0ITs) {
+  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0)
     return;
 
   FDCAN_RxHeaderTypeDef hdr;
   uint8_t data[64];
 
-  while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0) {
-    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &hdr, data) != HAL_OK) {
+  while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0) {
+    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &hdr, data) != HAL_OK) {
       break;
     }
 
