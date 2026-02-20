@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file    app_azure_rtos.c
-  * @author  MCD Application Team
-  * @brief   app_azure_rtos application implementation file
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2020-2021 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file    app_azure_rtos.c
+ * @author  MCD Application Team
+ * @brief   app_azure_rtos application implementation file
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2020-2021 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -42,7 +42,10 @@
 /* USER CODE BEGIN PM */
 static void busy_delay(volatile uint32_t n)
 {
-  while (n--) { __NOP(); }
+  while (n--)
+  {
+    __NOP();
+  }
 }
 /* USER CODE END PM */
 
@@ -50,16 +53,16 @@ static void busy_delay(volatile uint32_t n)
 #if (USE_STATIC_ALLOCATION == 1)
 /* USER CODE BEGIN TX_Pool_Buffer */
 /* USER CODE END TX_Pool_Buffer */
-#if defined ( __ICCARM__ )
-#pragma data_alignment=4
+#if defined(__ICCARM__)
+#pragma data_alignment = 4
 #endif
 __ALIGN_BEGIN static UCHAR tx_byte_pool_buffer[TX_APP_MEM_POOL_SIZE] __ALIGN_END;
 static TX_BYTE_POOL tx_app_byte_pool;
 
 /* USER CODE BEGIN UX_Device_Pool_Buffer */
 /* USER CODE END UX_Device_Pool_Buffer */
-#if defined ( __ICCARM__ )
-#pragma data_alignment=4
+#if defined(__ICCARM__)
+#pragma data_alignment = 4
 #endif
 __ALIGN_BEGIN static UCHAR ux_device_byte_pool_buffer[UX_DEVICE_APP_MEM_POOL_SIZE] __ALIGN_END;
 static TX_BYTE_POOL ux_device_app_byte_pool;
@@ -76,10 +79,10 @@ static TX_BYTE_POOL ux_device_app_byte_pool;
 /* USER CODE END PFP */
 
 /**
-  * @brief  Define the initial system.
-  * @param  first_unused_memory : Pointer to the first unused memory
-  * @retval None
-  */
+ * @brief  Define the initial system.
+ * @param  first_unused_memory : Pointer to the first unused memory
+ * @retval None
+ */
 VOID tx_application_define(VOID *first_unused_memory)
 {
   /* USER CODE BEGIN  tx_application_define_1*/
@@ -92,11 +95,11 @@ VOID tx_application_define(VOID *first_unused_memory)
   if (tx_byte_pool_create(&tx_app_byte_pool, "Tx App memory pool", tx_byte_pool_buffer, TX_APP_MEM_POOL_SIZE) != TX_SUCCESS)
   {
     /* USER CODE BEGIN TX_Byte_Pool_Error */
-while(1)
-      {
-            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-        busy_delay(50000000); // adjust until visible
-      }
+    while (1)
+    {
+      HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+      busy_delay(50000000); // adjust until visible
+    }
     /* USER CODE END TX_Byte_Pool_Error */
   }
   else
@@ -110,10 +113,10 @@ while(1)
     if (status != TX_SUCCESS)
     {
       /* USER CODE BEGIN  App_ThreadX_Init_Error */
-      while(1)
+      while (1)
       {
-            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-  busy_delay(40000000); // adjust until visible
+        HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+        busy_delay(40000000); // adjust until visible
       }
       /* USER CODE END  App_ThreadX_Init_Error */
     }
@@ -121,17 +124,16 @@ while(1)
     /* USER CODE BEGIN  App_ThreadX_Init_Success */
 
     /* USER CODE END  App_ThreadX_Init_Success */
-
   }
 
   if (tx_byte_pool_create(&ux_device_app_byte_pool, "Ux App memory pool", ux_device_byte_pool_buffer, UX_DEVICE_APP_MEM_POOL_SIZE) != TX_SUCCESS)
   {
     /* USER CODE BEGIN UX_Device_Byte_Pool_Error */
-while(1)
-      {
-            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-  busy_delay(3000000); // adjust until visible
-      }
+    while (1)
+    {
+      HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+      busy_delay(3000000); // adjust until visible
+    }
     /* USER CODE END UX_Device_Byte_Pool_Error */
   }
   else
@@ -145,9 +147,9 @@ while(1)
     if (status != UX_SUCCESS)
     {
       /* USER CODE BEGIN  MX_USBX_Device_Init_Error */
-      while(1)
+      while (1)
       {
-            HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+        HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
         busy_delay(1000000); // adjust until visible
       }
       /* USER CODE END  MX_USBX_Device_Init_Error */
@@ -192,5 +194,4 @@ while(1)
   (void)first_unused_memory;
   /* USER CODE END DYNAMIC_MEM_ALLOC */
 #endif
-
 }

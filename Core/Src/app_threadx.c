@@ -44,10 +44,23 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
 {
   UINT ret = TX_SUCCESS;
   TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
-  /* Let Rust telemetry use the application's byte pool instead of creating its own. */
-  telemetry_set_byte_pool(byte_pool);
   /* USER CODE BEGIN App_ThreadX_MEM_POOL */
   /* USER CODE END App_ThreadX_MEM_POOL */
+  CHAR *pointer;
+
+  /* Allocate the stack for test  */
+  if (tx_byte_allocate(byte_pool, (VOID**) &pointer,
+                       TX_APP_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
+  {
+    return TX_POOL_ERROR;
+  }
+  /* Create test.  */
+  if (tx_thread_create(&tx_app_thread, "test", tx_app_thread_entry, 0, pointer,
+                       TX_APP_STACK_SIZE, TX_APP_THREAD_PRIO, TX_APP_THREAD_PREEMPTION_THRESHOLD,
+                       TX_APP_THREAD_TIME_SLICE, TX_APP_THREAD_AUTO_START) != TX_SUCCESS)
+  {
+    return TX_THREAD_ERROR;
+  }
 
   /* USER CODE BEGIN App_ThreadX_Init */
   if (init_telemetry_router() != SEDS_OK) {
@@ -59,6 +72,17 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   /* USER CODE END App_ThreadX_Init */
 
   return ret;
+}
+/**
+  * @brief  Function implementing the tx_app_thread_entry thread.
+  * @param  thread_input: Hardcoded to 0.
+  * @retval None
+  */
+void tx_app_thread_entry(ULONG thread_input)
+{
+  /* USER CODE BEGIN tx_app_thread_entry */
+
+  /* USER CODE END tx_app_thread_entry */
 }
 
   /**
