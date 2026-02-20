@@ -8,6 +8,10 @@
 /* USER CODE BEGIN Includes */
 #include "main.h"
 #include "PB-Threads.h"
+/* Provide telemetry_set_byte_pool so rust hooks use the app memory pool */
+extern void telemetry_set_byte_pool(TX_BYTE_POOL *pool);
+#include "telemetry.h"
+#include "ltc2990.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,10 +44,15 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
 {
   UINT ret = TX_SUCCESS;
   TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
+  /* Let Rust telemetry use the application's byte pool instead of creating its own. */
+  telemetry_set_byte_pool(byte_pool);
   /* USER CODE BEGIN App_ThreadX_MEM_POOL */
   /* USER CODE END App_ThreadX_MEM_POOL */
 
   /* USER CODE BEGIN App_ThreadX_Init */
+  if (init_telemetry_router() != SEDS_OK) {
+    Error_Handler();
+  }
   static LTC2990_Handle_t ltc2990_handle;
   create_sensor_thread(byte_pool, &ltc2990_handle);
   create_telemetry_thread(byte_pool);
