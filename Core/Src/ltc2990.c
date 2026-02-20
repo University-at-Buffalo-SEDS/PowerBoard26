@@ -3,6 +3,12 @@
 #include "sedsprintf.h"
 #include "telemetry.h"
 
+#include <math.h>
+#include <stdint.h>
+#include <limits.h>
+#include <stdio.h>
+#include <inttypes.h>
+
 // Global LTC2990 handle definition for telemetry
 LTC2990_Handle_t ltc2990_handle;
 
@@ -224,8 +230,33 @@ int8_t LTC2990_Write_Register(LTC2990_Handle_t *h, uint8_t reg, uint8_t data)
 }
 
 void telemetry_ltc2990_update(LTC2990_Handle_t *ltc2990_handle) {
-  float voltages[4];
-  LTC2990_Step(ltc2990_handle);
-  LTC2990_Get_Voltage(ltc2990_handle, voltages);
-  log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, voltages, 1, sizeof(float));
+    float voltages[4] = {0, 0, 0, 0};
+    LTC2990_Step(ltc2990_handle);
+    LTC2990_Get_Voltage(ltc2990_handle, voltages);
+
+    int32_t mv[4];
+    for (int i = 0; i < 4; ++i) {
+        if (!(voltages[i] == voltages[i])) { // NaN check
+            mv[i] = INT32_MIN;
+        } else {
+            mv[i] = (int32_t)roundf(voltages[i] * 1000.0f); // millivolts
+        }
+    }
+
+    printf("Voltages: ");
+    for (int i = 0; i < 4; ++i) {
+        if (i) printf(", ");
+        if (mv[i] == INT32_MIN) {
+            printf("NaN V");
+        } else {
+            int32_t whole = mv[i] / 1000;
+            int32_t frac = mv[i] >= 0 ? (mv[i] % 1000) : -(mv[i] % 1000);
+            printf("%" PRId32 ".%03" PRId32 " V", whole, frac);
+        }
+    }
+    printf("\n");
+
+#ifdef TELEMETRY_ENABLED
+    log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, voltages, 1, sizeof(float));
+#endif
 }
