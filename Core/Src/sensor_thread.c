@@ -37,7 +37,7 @@ void sensor_thread_entry(ULONG entry_input)
     }
 }
 
-void create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_handle_ptr)
+UINT create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_handle_ptr)
 {
      CHAR *pointer;
 
@@ -58,7 +58,5 @@ UINT status = tx_thread_create(&sensor_thread,
                                TX_NO_TIME_SLICE,
                                TX_AUTO_START);
 
-    if (status != TX_SUCCESS) {
-        die("Failed to create sensor thread: %u", (unsigned)status);
-    }
+    return status;
 }

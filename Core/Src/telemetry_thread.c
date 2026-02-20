@@ -49,7 +49,7 @@ void telemetry_thread_entry(ULONG initial_input)
     }
 }
 
-void create_telemetry_thread(TX_BYTE_POOL *byte_pool)
+UINT create_telemetry_thread(TX_BYTE_POOL *byte_pool)
 {
 
         CHAR *pointer;
@@ -72,7 +72,5 @@ void create_telemetry_thread(TX_BYTE_POOL *byte_pool)
                                    TX_NO_TIME_SLICE,
                                    TX_AUTO_START);
 
-    if (status != TX_SUCCESS) {
-        die("Failed to create telemetry thread: %u", (unsigned)status);
-    }
+    return status;
 }

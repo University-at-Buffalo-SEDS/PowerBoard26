@@ -106,5 +106,32 @@ VOID USBD_CDC_ACM_ParameterChange(VOID *cdc_acm_instance)
 }
 
 /* USER CODE BEGIN 1 */
+VOID usbx_cdc_acm_write_thread_entry(ULONG thread_input)
+{
+      /* Private Variables */
+      ULONG tx_actual_length;
+      const uint8_t message[] = "USBX Application Running!\r\n";
+      while(1)
+      {
+             ux_device_class_cdc_acm_write(cdc_acm, (UCHAR *)(message), sizeof(message), &tx_actual_length);
+             tx_thread_sleep(10);
+      }
+}
+
+VOID usbx_cdc_acm_read_thread_entry(ULONG thread_input)
+{
+      /* Private Variables */
+      ULONG rx_actual_length;
+      uint8_t UserRxBuffer[64];
+      /* Infinite Loop */
+      while(1)
+      {
+             if(cdc_acm != UX_NULL)
+             {
+                   ux_device_class_cdc_acm_read(cdc_acm, (UCHAR *)UserRxBuffer, 64, &rx_actual_length);
+                   tx_thread_sleep(100);
+             }
+      }
+}
 
 /* USER CODE END 1 */
