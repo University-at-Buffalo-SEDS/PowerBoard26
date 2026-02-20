@@ -52,7 +52,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void cdc_printf_init(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

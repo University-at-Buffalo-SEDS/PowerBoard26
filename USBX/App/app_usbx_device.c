@@ -52,8 +52,6 @@ static UX_SLAVE_CLASS_CDC_ACM_PARAMETER cdc_acm_parameter;
 static TX_THREAD ux_device_app_thread;
 
 /* USER CODE BEGIN PV */
-static TX_THREAD ux_cdc_read_thread;
-static TX_THREAD ux_cdc_write_thread;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,10 +62,10 @@ static UINT USBD_ChangeFunction(ULONG Device_State);
 /* USER CODE END PFP */
 
 /**
- * @brief  Application USBX Device Initialization.
- * @param  memory_ptr: memory pointer
- * @retval status
- */
+  * @brief  Application USBX Device Initialization.
+  * @param  memory_ptr: memory pointer
+  * @retval status
+  */
 UINT MX_USBX_Device_Init(VOID *memory_ptr)
 {
   UINT ret = UX_SUCCESS;
@@ -80,14 +78,14 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   UCHAR *string_framework;
   UCHAR *language_id_framework;
   UCHAR *pointer;
-  TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL *)memory_ptr;
+  TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
 
   /* USER CODE BEGIN MX_USBX_Device_Init0 */
 
   /* USER CODE END MX_USBX_Device_Init0 */
 
   /* Allocate the stack for USBX Memory */
-  if (tx_byte_allocate(byte_pool, (VOID **)&pointer,
+  if (tx_byte_allocate(byte_pool, (VOID **) &pointer,
                        USBX_DEVICE_MEMORY_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
   {
     /* USER CODE BEGIN USBX_ALLOCATE_STACK_ERORR */
@@ -134,9 +132,9 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* Initialize the cdc acm class parameters for the device */
-  cdc_acm_parameter.ux_slave_class_cdc_acm_instance_activate = USBD_CDC_ACM_Activate;
+  cdc_acm_parameter.ux_slave_class_cdc_acm_instance_activate   = USBD_CDC_ACM_Activate;
   cdc_acm_parameter.ux_slave_class_cdc_acm_instance_deactivate = USBD_CDC_ACM_Deactivate;
-  cdc_acm_parameter.ux_slave_class_cdc_acm_parameter_change = USBD_CDC_ACM_ParameterChange;
+  cdc_acm_parameter.ux_slave_class_cdc_acm_parameter_change    = USBD_CDC_ACM_ParameterChange;
 
   /* USER CODE BEGIN CDC_ACM_PARAMETER */
 
@@ -161,7 +159,7 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* Allocate the stack for device application main thread */
-  if (tx_byte_allocate(byte_pool, (VOID **)&pointer, UX_DEVICE_APP_THREAD_STACK_SIZE,
+  if (tx_byte_allocate(byte_pool, (VOID **) &pointer, UX_DEVICE_APP_THREAD_STACK_SIZE,
                        TX_NO_WAIT) != TX_SUCCESS)
   {
     /* USER CODE BEGIN MAIN_THREAD_ALLOCATE_STACK_ERORR */
@@ -181,25 +179,16 @@ UINT MX_USBX_Device_Init(VOID *memory_ptr)
   }
 
   /* USER CODE BEGIN MX_USBX_Device_Init1 */
-  /* Allocate memory for the UX RX thread */
-  tx_byte_allocate(byte_pool, (VOID **)&pointer, 1024, TX_NO_WAIT);
-  /* Create the UX RX thread */
-  tx_thread_create(&ux_cdc_read_thread, "cdc_acm_read_usbx_app_thread_entry", usbx_cdc_acm_read_thread_entry, 1, pointer, 1024, 20, 20, TX_NO_TIME_SLICE, TX_AUTO_START);
-  /* Allocate memory for the UX TX thread */
-  tx_byte_allocate(byte_pool, (VOID **)&pointer, 1024, TX_NO_WAIT);
-  /* Create the UX TX thread */
-  tx_thread_create(&ux_cdc_write_thread, "cdc_acm_write_usbx_app_thread_entry", usbx_cdc_acm_write_thread_entry, 1, pointer, 1025, 20, 20, TX_NO_TIME_SLICE, TX_AUTO_START);
-
   /* USER CODE END MX_USBX_Device_Init1 */
 
   return ret;
 }
 
 /**
- * @brief  Function implementing app_ux_device_thread_entry.
- * @param  thread_input: User thread input parameter.
- * @retval none
- */
+  * @brief  Function implementing app_ux_device_thread_entry.
+  * @param  thread_input: User thread input parameter.
+  * @retval none
+  */
 static VOID app_ux_device_thread_entry(ULONG thread_input)
 {
   /* USER CODE BEGIN app_ux_device_thread_entry */
@@ -215,14 +204,14 @@ static VOID app_ux_device_thread_entry(ULONG thread_input)
 }
 
 /**
- * @brief  USBD_ChangeFunction
- *         This function is called when the device state changes.
- * @param  Device_State: USB Device State
- * @retval status
- */
+  * @brief  USBD_ChangeFunction
+  *         This function is called when the device state changes.
+  * @param  Device_State: USB Device State
+  * @retval status
+  */
 static UINT USBD_ChangeFunction(ULONG Device_State)
 {
-  UINT status = UX_SUCCESS;
+   UINT status = UX_SUCCESS;
 
   /* USER CODE BEGIN USBD_ChangeFunction0 */
 
@@ -230,69 +219,70 @@ static UINT USBD_ChangeFunction(ULONG Device_State)
 
   switch (Device_State)
   {
-  case UX_DEVICE_ATTACHED:
+    case UX_DEVICE_ATTACHED:
 
-    /* USER CODE BEGIN UX_DEVICE_ATTACHED */
+      /* USER CODE BEGIN UX_DEVICE_ATTACHED */
 
-    /* USER CODE END UX_DEVICE_ATTACHED */
+      /* USER CODE END UX_DEVICE_ATTACHED */
 
-    break;
+      break;
 
-  case UX_DEVICE_REMOVED:
+    case UX_DEVICE_REMOVED:
 
-    /* USER CODE BEGIN UX_DEVICE_REMOVED */
+      /* USER CODE BEGIN UX_DEVICE_REMOVED */
 
-    /* USER CODE END UX_DEVICE_REMOVED */
+      /* USER CODE END UX_DEVICE_REMOVED */
 
-    break;
+      break;
 
-  case UX_DCD_STM32_DEVICE_CONNECTED:
+    case UX_DCD_STM32_DEVICE_CONNECTED:
 
-    /* USER CODE BEGIN UX_DCD_STM32_DEVICE_CONNECTED */
+      /* USER CODE BEGIN UX_DCD_STM32_DEVICE_CONNECTED */
 
-    /* USER CODE END UX_DCD_STM32_DEVICE_CONNECTED */
+      /* USER CODE END UX_DCD_STM32_DEVICE_CONNECTED */
 
-    break;
+      break;
 
-  case UX_DCD_STM32_DEVICE_DISCONNECTED:
+    case UX_DCD_STM32_DEVICE_DISCONNECTED:
 
-    /* USER CODE BEGIN UX_DCD_STM32_DEVICE_DISCONNECTED */
+      /* USER CODE BEGIN UX_DCD_STM32_DEVICE_DISCONNECTED */
 
-    /* USER CODE END UX_DCD_STM32_DEVICE_DISCONNECTED */
+      /* USER CODE END UX_DCD_STM32_DEVICE_DISCONNECTED */
 
-    break;
+      break;
 
-  case UX_DCD_STM32_DEVICE_SUSPENDED:
+    case UX_DCD_STM32_DEVICE_SUSPENDED:
 
-    /* USER CODE BEGIN UX_DCD_STM32_DEVICE_SUSPENDED */
+      /* USER CODE BEGIN UX_DCD_STM32_DEVICE_SUSPENDED */
 
-    /* USER CODE END UX_DCD_STM32_DEVICE_SUSPENDED */
+      /* USER CODE END UX_DCD_STM32_DEVICE_SUSPENDED */
 
-    break;
+      break;
 
-  case UX_DCD_STM32_DEVICE_RESUMED:
+    case UX_DCD_STM32_DEVICE_RESUMED:
 
-    /* USER CODE BEGIN UX_DCD_STM32_DEVICE_RESUMED */
+      /* USER CODE BEGIN UX_DCD_STM32_DEVICE_RESUMED */
 
-    /* USER CODE END UX_DCD_STM32_DEVICE_RESUMED */
+      /* USER CODE END UX_DCD_STM32_DEVICE_RESUMED */
 
-    break;
+      break;
 
-  case UX_DCD_STM32_SOF_RECEIVED:
+    case UX_DCD_STM32_SOF_RECEIVED:
 
-    /* USER CODE BEGIN UX_DCD_STM32_SOF_RECEIVED */
+      /* USER CODE BEGIN UX_DCD_STM32_SOF_RECEIVED */
 
-    /* USER CODE END UX_DCD_STM32_SOF_RECEIVED */
+      /* USER CODE END UX_DCD_STM32_SOF_RECEIVED */
 
-    break;
+      break;
 
-  default:
+    default:
 
-    /* USER CODE BEGIN DEFAULT */
+      /* USER CODE BEGIN DEFAULT */
 
-    /* USER CODE END DEFAULT */
+      /* USER CODE END DEFAULT */
 
-    break;
+      break;
+
   }
 
   /* USER CODE BEGIN USBD_ChangeFunction1 */

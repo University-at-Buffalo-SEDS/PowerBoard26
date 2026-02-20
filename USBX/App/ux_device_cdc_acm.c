@@ -114,7 +114,7 @@ VOID usbx_cdc_acm_write_thread_entry(ULONG thread_input)
       while(1)
       {
              ux_device_class_cdc_acm_write(cdc_acm, (UCHAR *)(message), sizeof(message), &tx_actual_length);
-             tx_thread_sleep(10);
+             tx_thread_sleep(100);
       }
 }
 
@@ -129,7 +129,15 @@ VOID usbx_cdc_acm_read_thread_entry(ULONG thread_input)
              if(cdc_acm != UX_NULL)
              {
                    ux_device_class_cdc_acm_read(cdc_acm, (UCHAR *)UserRxBuffer, 64, &rx_actual_length);
-                   tx_thread_sleep(100);
+                   switch(UserRxBuffer[rx_actual_length-1])
+                   {
+                   case '1':
+                          HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
+                          break;
+                   case '0':
+                          HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
+                          break;
+                   }
              }
       }
 }

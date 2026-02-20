@@ -5,6 +5,7 @@
 #include "telemetry.h"
 #include "ltc2990.h"
 #include "main.h"
+#include <stdio.h>
 
 TX_THREAD sensor_thread;
 
@@ -29,7 +30,7 @@ void sensor_thread_entry(ULONG entry_input)
                                     1);
 
     for (;;) {
-        HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
+        // HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
         tx_thread_sleep(50); // 50 ticks = 0.5s if your tick is 100Hz (it is)
         telemetry_ltc2990_update(ltc2990_handle);
         // Consider sleeping/yielding so you don't peg the CPU:

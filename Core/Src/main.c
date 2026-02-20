@@ -449,7 +449,12 @@ static void cdc_write_raw(const uint8_t *buf, uint16_t len)
   /* Keep it simple: one synchronous write. If host isn't ready, drop. */
   ULONG actual = 0;
   UINT st = ux_device_class_cdc_acm_write(cdc_acm, (UCHAR *)buf, (ULONG)len, &actual);
-  (void)st;
+  if (st != UX_SUCCESS || actual == 0)
+  {
+    cdc_unlock();
+    Error_Handler();
+    return;
+  }
   (void)actual;
 
   cdc_unlock();

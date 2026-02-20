@@ -63,6 +63,7 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   }
 
   /* USER CODE BEGIN App_ThreadX_Init */
+  cdc_printf_init();
   if (init_telemetry_router() != SEDS_OK) {
     Error_Handler();
   }
