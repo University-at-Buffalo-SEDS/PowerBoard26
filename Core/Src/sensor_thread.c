@@ -28,7 +28,6 @@ void sensor_thread_entry(ULONG entry_input)
     for (;;) {
 
         tx_thread_sleep(500);
-        HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
         telemetry_ltc2990_update(ltc2990_handle);
         // printf("Sensor thread loop\n");
     }

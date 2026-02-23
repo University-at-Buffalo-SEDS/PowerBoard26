@@ -211,7 +211,7 @@ SedsResult tx_send(const uint8_t *bytes, size_t len, void *user)
     return SEDS_BAD_ARG;
   }
 
-  return (can_bus_send_large(bytes, len, 0x03) == HAL_OK) ? SEDS_OK : SEDS_IO;
+  return (can_bus_send_large(bytes, len, 0x04) == HAL_OK) ? SEDS_OK : SEDS_IO;
 }
 
 SedsResult on_sd_packet(const SedsPacketView *pkt, void *user)
