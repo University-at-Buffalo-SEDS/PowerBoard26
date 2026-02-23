@@ -451,8 +451,10 @@ static void cdc_write_raw(const uint8_t *buf, uint16_t len)
   UINT st = ux_device_class_cdc_acm_write(cdc_acm, (UCHAR *)buf, (ULONG)len, &actual);
   if (st != UX_SUCCESS || actual == 0)
   {
+    /* Host not ready or write failed — drop the data instead of hard-failing.
+       This avoids entering Error_Handler when USB is connected but the
+       host-side serial port isn't opened. */
     cdc_unlock();
-    Error_Handler();
     return;
   }
   (void)actual;
@@ -587,6 +589,7 @@ void Error_Handler(void)
   while (1)
   {
     HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+    HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
     busy_delay(100000);
 
   }

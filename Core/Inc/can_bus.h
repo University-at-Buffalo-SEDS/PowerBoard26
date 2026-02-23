@@ -26,12 +26,6 @@ HAL_StatusTypeDef can_bus_send_large(const uint8_t *bytes, size_t len, uint32_t 
 void can_bus_process_rx(void);
 
 /*
- * MUST be called periodically from thread/main-loop context.
- * This drains the ISR RX ring, performs reassembly, and invokes subscribers.
- */
-void can_bus_process_rx(void);
-
-/*
  * Subscribe a callback to RX events (FIFO1).
  * Can be called at startup before interrupts start firing.
  * Returns HAL_OK on success, HAL_ERROR if the list is full or duplicate.
@@ -43,6 +37,16 @@ HAL_StatusTypeDef can_bus_subscribe_rx(can_bus_rx_cb_t cb, void *user);
  * Returns HAL_OK if removed, HAL_ERROR if not found.
  */
 HAL_StatusTypeDef can_bus_unsubscribe_rx(can_bus_rx_cb_t cb, void *user);
+
+
+/*
+ * Poll hardware FIFOs (RX FIFO1 and TX event FIFO) and push events into the
+ * internal rings. This function is safe to call whether HAL notifications
+ * (interrupts) are enabled or not: if notifications are active it will
+ * temporarily deactivate them while polling to avoid races, then restore
+ * them.
+ */
+void can_bus_poll(void);
 
 #ifdef __cplusplus
 }

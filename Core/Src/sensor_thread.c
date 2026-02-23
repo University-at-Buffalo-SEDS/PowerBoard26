@@ -6,6 +6,7 @@
 #include "ltc2990.h"
 #include "main.h"
 #include <stdio.h>
+#include "can_bus.h"
 
 TX_THREAD sensor_thread;
 
@@ -19,22 +20,17 @@ void sensor_thread_entry(ULONG entry_input)
 
     // Initialize LTC2990 for voltage mode
     if (LTC2990_Init(ltc2990_handle, &hi2c2, LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE) != 0) {
-        log_error_syncronous("LTC2990 init failed");
+        log_error_asynchronous("LTC2990 init failed");
         Error_Handler();
     }
-
-    const char started_txt[] = "Sensor thread starting";
-    (void)log_telemetry_synchronous(SEDS_DT_MESSAGE_DATA,
-                                    started_txt,
-                                    sizeof(started_txt),
-                                    1);
+        HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
 
     for (;;) {
-        // HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
-        tx_thread_sleep(50); // 50 ticks = 0.5s if your tick is 100Hz (it is)
+
+        tx_thread_sleep(500);
+        HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
         telemetry_ltc2990_update(ltc2990_handle);
-        // Consider sleeping/yielding so you don't peg the CPU:
-        // tx_thread_sleep(1);  // or a meaningful period
+        // printf("Sensor thread loop\n");
     }
 }
 
@@ -54,8 +50,8 @@ UINT status = tx_thread_create(&sensor_thread,
                                (ULONG)(uintptr_t)ltc2990_handle_ptr,
                                pointer,                 // stack pointer from tx_byte_allocate
                                SENSOR_THREAD_STACK_SIZE,       // must match allocation size
-                               5,                       // priority
-                               5,                       // preemption threshold
+                               4,                       // priority
+                               4,                       // preemption threshold
                                TX_NO_TIME_SLICE,
                                TX_AUTO_START);
 

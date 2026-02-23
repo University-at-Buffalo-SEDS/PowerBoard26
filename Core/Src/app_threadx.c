@@ -10,12 +10,17 @@
 #include "PB-Threads.h"
 /* Provide telemetry_set_byte_pool so rust hooks use the app memory pool */
 extern void telemetry_set_byte_pool(TX_BYTE_POOL *pool);
+extern void telemetry_init_lock(void);
 #include "telemetry.h"
 #include "ltc2990.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+static void busy_delay(volatile uint32_t n)
+{
+  while (n--) { __NOP(); }
+}
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -44,17 +49,26 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   UINT ret = TX_SUCCESS;
   /* USER CODE BEGIN App_ThreadX_MEM_POOL */
   TX_BYTE_POOL *byte_pool = (TX_BYTE_POOL*)memory_ptr;
-   /* USER CODE END App_ThreadX_MEM_POOL */
+  /* USER CODE END App_ThreadX_MEM_POOL */
 
   /* USER CODE BEGIN App_ThreadX_Init */
-  HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
   telemetry_set_byte_pool(byte_pool);
-  if (init_telemetry_router() != SEDS_OK) {
+  /* Initialize telemetry lock used by Rust (telemetry_lock/telemetry_unlock). */
+  telemetry_init_lock();
+  static LTC2990_Handle_t ltc2990_handle;
+  ret = create_sensor_thread(byte_pool, &ltc2990_handle);
+  if (ret != TX_SUCCESS) {
     Error_Handler();
   }
-  static LTC2990_Handle_t ltc2990_handle;
-  create_sensor_thread(byte_pool, &ltc2990_handle);
-  create_telemetry_thread(byte_pool);
+
+  ret = create_telemetry_thread(byte_pool);
+  if (ret != TX_SUCCESS)
+  {
+    Error_Handler();
+  }
+  
+
+
   /* USER CODE END App_ThreadX_Init */
 
   return ret;
@@ -73,6 +87,11 @@ void MX_ThreadX_Init(void)
   tx_kernel_enter();
 
   /* USER CODE BEGIN  Kernel_Start_Error */
+  while (1)
+  {
+    HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+    busy_delay(40000000); // adjust until visible
+  }
   /* USER CODE END  Kernel_Start_Error */
 }
 
