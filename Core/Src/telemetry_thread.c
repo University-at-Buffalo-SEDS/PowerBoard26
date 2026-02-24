@@ -36,13 +36,13 @@ void telemetry_thread_entry(ULONG initial_input)
         /* Poll hardware FIFO and then process reassembly + router queues. */
         HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 
-        can_bus_poll();
+        // can_bus_poll();
         can_bus_process_rx();
         (void)process_all_queues_timeout(50);
 
          ULONG now_ticks = tx_time_get();
         if ((ULONG)(now_ticks - last_req_ticks) >= (ULONG)TIMESYNC_REQUEST_PERIOD_TICKS) {
-            // (void)telemetry_timesync_request();
+            (void)telemetry_timesync_request();
             last_req_ticks = now_ticks;
         }
 
