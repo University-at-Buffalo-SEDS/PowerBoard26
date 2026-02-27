@@ -45,7 +45,7 @@
 #define CAN_BUS_POLLING 0
 #endif
 
-
+#define UNUSED_VALUE __attribute__((unused))
 
 /* Forward declarations (avoid implicit decl / linkage mismatch) */
 static void can_bus_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo);
@@ -653,7 +653,7 @@ static void can_bus_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo)
   }
 }
 
-static void can_bus_drain_tx_events(FDCAN_HandleTypeDef *hfdcan)
+static UNUSED_VALUE void can_bus_drain_tx_events(FDCAN_HandleTypeDef *hfdcan)
 {
   FDCAN_TxEventFifoTypeDef ev;
   while (HAL_FDCAN_GetTxEvent(hfdcan, &ev) == HAL_OK)

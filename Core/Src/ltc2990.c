@@ -258,6 +258,7 @@ void telemetry_ltc2990_update(LTC2990_Handle_t *ltc2990_handle) {
     float voltage = (voltages[0] + voltages[1]) - (voltages[2] + voltages[3]);
 #ifdef TELEMETRY_ENABLED
     SedsResult res = log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, &voltage, 1, sizeof(float));
+    (void)res;
     // char buff[seds_error_to_string_len(res)];
     // seds_error_to_string(res, buff, sizeof(buff));
     // printf("log result: %s\r\n", buff);
