@@ -229,38 +229,29 @@ int8_t LTC2990_Write_Register(LTC2990_Handle_t *h, uint8_t reg, uint8_t data)
     return (st == HAL_OK) ? 0 : 1;
 }
 
-void telemetry_ltc2990_update(LTC2990_Handle_t *ltc2990_handle) {
+void telemetry_ltc2990_update_voltage(LTC2990_Handle_t *ltc2990_handle) {
     float voltages[4] = {0, 0, 0, 0};
     LTC2990_Step(ltc2990_handle);
     LTC2990_Get_Voltage(ltc2990_handle, voltages);
+    float voltage = voltages[0] * 2.8;
 
-    // int32_t mv[4];
-    // for (int i = 0; i < 4; ++i) {
-    //     if (!(voltages[i] == voltages[i])) { // NaN check
-    //         mv[i] = INT32_MIN;
-    //     } else {
-    //         mv[i] = (int32_t)roundf(voltages[i] * 1000.0f); // millivolts
-    //     }
-    // }
 
-    // printf("Voltages: ");
-    // for (int i = 0; i < 4; ++i) {
-    //     if (i) printf(", ");
-    //     if (mv[i] == INT32_MIN) {
-    //         printf("NaN V");
-    //     } else {
-    //         int32_t whole = mv[i] / 1000;
-    //         int32_t frac = mv[i] >= 0 ? (mv[i] % 1000) : -(mv[i] % 1000);
-    //         printf("%" PRId32 ".%03" PRId32 " V", whole, frac);
-    //     }
-    // }
-    // printf("\n");
-    float voltage = (voltages[0] + voltages[1]) - (voltages[2] + voltages[3]);
 #ifdef TELEMETRY_ENABLED
     SedsResult res = log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, &voltage, 1, sizeof(float));
     (void)res;
-    // char buff[seds_error_to_string_len(res)];
-    // seds_error_to_string(res, buff, sizeof(buff));
-    // printf("log result: %s\r\n", buff);
+#endif
+}
+
+
+void telemetry_ltc2990_update_current(LTC2990_Handle_t *ltc2990_handle) {
+    float current[4] = {0, 0, 0, 0};
+    LTC2990_Step(ltc2990_handle);
+    LTC2990_Get_Voltage(ltc2990_handle, current);
+    float current_value = current[0];
+
+
+#ifdef TELEMETRY_ENABLED
+    SedsResult res = log_telemetry_asynchronous(SEDS_DT_BATTERY_CURRENT, &current_value, 1, sizeof(float));
+    (void)res;
 #endif
 }

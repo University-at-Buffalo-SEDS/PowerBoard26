@@ -13,6 +13,6 @@ UINT create_telemetry_thread(TX_BYTE_POOL *byte_pool);
 extern TX_THREAD sensor_thread;
 
 void sensor_thread_entry(ULONG entry_input);
-UINT create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_handle_ptr);
+UINT create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_voltage_handle_ptr, LTC2990_Handle_t *ltc2990_current_handle_ptr);
 
 /* ------ Sensor Thread ------ */

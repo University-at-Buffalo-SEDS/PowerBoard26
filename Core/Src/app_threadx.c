@@ -55,8 +55,11 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   telemetry_set_byte_pool(byte_pool);
   /* Initialize telemetry lock used by Rust (telemetry_lock/telemetry_unlock). */
   telemetry_init_lock();
-  static LTC2990_Handle_t ltc2990_handle;
-  ret = create_sensor_thread(byte_pool, &ltc2990_handle);
+  
+  static LTC2990_Handle_t ltc2990_voltage_handle;
+  static LTC2990_Handle_t ltc2990_current_handle;
+
+  ret = create_sensor_thread(byte_pool, &ltc2990_voltage_handle, &ltc2990_current_handle);
   if (ret != TX_SUCCESS) {
     Error_Handler();
   }
