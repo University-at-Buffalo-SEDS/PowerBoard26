@@ -6,7 +6,7 @@
 #include "main.h"
 
 TX_THREAD telemetry_thread;
-#define TELEMETRY_THREAD_STACK_SIZE (16U *1024U)
+#define TELEMETRY_THREAD_STACK_SIZE (16U * 1024U)
 
 // How often this node requests a resync from the master:
 #define TIMESYNC_REQUEST_PERIOD_MS 2000u // e.g. every 2 seconds
@@ -20,56 +20,57 @@ TX_THREAD telemetry_thread;
 
 void telemetry_thread_entry(ULONG initial_input)
 {
-    (void)initial_input;
+  (void)initial_input;
 
-    // Ensure router exists early (so we can send requests immediately)
-    (void)init_telemetry_router();
+  // Ensure router exists early (so we can send requests immediately)
+  (void)init_telemetry_router();
+  HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+  tx_thread_sleep(500);
+  HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 
-    ULONG last_req_ticks = tx_time_get();
-    for (;;) {
-        /* Poll hardware FIFO and then process reassembly + router queues. */
-        HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+  ULONG last_req_ticks = tx_time_get();
+  for (;;)
+  {
+    /* Poll hardware FIFO and then process reassembly + router queues. */
+    HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 
-        // can_bus_poll();
-        can_bus_process_rx();
-        (void)process_all_queues_timeout(50);
+    // can_bus_poll();
+    can_bus_process_rx();
+    (void)process_all_queues_timeout(50);
 
-         ULONG now_ticks = tx_time_get();
-        if ((ULONG)(now_ticks - last_req_ticks) >= (ULONG)TIMESYNC_REQUEST_PERIOD_TICKS) {
-            (void)telemetry_timesync_request();
-            last_req_ticks = now_ticks;
-        }
-
-        tx_thread_sleep(100);
-        HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-        tx_thread_sleep(100);
-
-
+    ULONG now_ticks = tx_time_get();
+    if ((ULONG)(now_ticks - last_req_ticks) >= (ULONG)TIMESYNC_REQUEST_PERIOD_TICKS)
+    {
+      (void)telemetry_timesync_request();
+      last_req_ticks = now_ticks;
     }
+
+    tx_thread_sleep(1);
+  }
 }
 
 UINT create_telemetry_thread(TX_BYTE_POOL *byte_pool)
 {
 
-        CHAR *pointer;
+  CHAR *pointer;
 
   /* Allocate the stack for test  */
-  if (tx_byte_allocate(byte_pool, (VOID**) &pointer,
+  if (tx_byte_allocate(byte_pool, (VOID **)&pointer,
                        TELEMETRY_THREAD_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
   {
     return TX_POOL_ERROR;
   }
 
-    UINT status = tx_thread_create(&telemetry_thread,
-                                   "Telemetry Thread",
-                                   telemetry_thread_entry,
-                                   0,
-                                   pointer,
-                                   TELEMETRY_THREAD_STACK_SIZE,
-                                   5,
-                                   5,
-                                   TX_NO_TIME_SLICE,
-                                   TX_AUTO_START);
+  UINT status = tx_thread_create(&telemetry_thread,
+                                 "Telemetry Thread",
+                                 telemetry_thread_entry,
+                                 0,
+                                 pointer,
+                                 TELEMETRY_THREAD_STACK_SIZE,
+                                 5,
+                                 5,
+                                 TX_NO_TIME_SLICE,
+                                 TX_AUTO_START);
 
-    return status;
+  return status;
 }
