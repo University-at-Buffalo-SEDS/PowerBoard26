@@ -39,7 +39,7 @@ void sensor_thread_entry(ULONG entry_input)
         log_error_asynchronous("LTC2990 init failed");
         Error_Handler();
     }
-    // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
 
     for (;;)
     {
