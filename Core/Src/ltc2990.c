@@ -115,11 +115,11 @@ void LTC2990_Step(LTC2990_Handle_t *h)
         float current_v3 = 0.0;
 
         if (LTC2990_ADC_Read_New_Data(h, V1_MSB_REG, &raw15_v1, &valid_v1) == 0 && valid_v1) {
-            h->last_voltages[0] = LTC2990_Code15_To_CurrentA(raw15_v1);
+            current_v1 = LTC2990_Code15_To_CurrentA(raw15_v1);
         }
 
         if (LTC2990_ADC_Read_New_Data(h, V3_MSB_REG, &raw15_v3, &valid_v3) == 0 && valid_v3) {
-            h->last_voltages[1] = LTC2990_Code15_To_CurrentA(raw15_v3);
+            current_v3 = LTC2990_Code15_To_CurrentA(raw15_v3);
         }
 
         h->last_voltages[0] = current_v1;
