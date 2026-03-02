@@ -21,6 +21,7 @@
 #define V4_LSB_REG          (0x0D)
 
 #define MODE_V1mV2_TR2      (0x01)
+#define MODE_DUAL_DIFF     (0x06)
 
 #define VOLTAGE_MODE_MASK   (0x07)
 #define TEMP_MEAS_MODE_MASK (0x18)

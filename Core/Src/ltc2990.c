@@ -66,7 +66,7 @@ int LTC2990_Init(LTC2990_Handle_t *h, I2C_HandleTypeDef *hi2c, uint8_t addr7, LT
     uint8_t control =
         (role == VOLTAGE) ?
         (CTRL_ALL | V1_V2_V3_V4) :
-        (CTRL_ALL | MODE_V1mV2_TR2);
+        (CTRL_ALL | MODE_DUAL_DIFF);
 
     uint8_t clear_mask = TEMP_MEAS_MODE_MASK | VOLTAGE_MODE_MASK;
 
@@ -108,18 +108,28 @@ void LTC2990_Step(LTC2990_Handle_t *h)
             }
         }
     } else {
-        uint16_t raw15;
-        int8_t valid;
+        uint16_t raw15_v1, raw15_v3;
+        int8_t valid_v1, valid_v3;
 
-        if (LTC2990_ADC_Read_New_Data(h, V1_MSB_REG, &raw15, &valid) == 0 && valid) {
-            h->last_voltages[0] = LTC2990_Code15_To_CurrentA(raw15);
-        } else {
-            h->last_voltages[0] = NAN;
+        float current_v1 = 0.0;
+        float current_v3 = 0.0;
+
+        if (LTC2990_ADC_Read_New_Data(h, V1_MSB_REG, &raw15_v1, &valid_v1) == 0 && valid_v1) {
+            h->last_voltages[0] = LTC2990_Code15_To_CurrentA(raw15_v1);
         }
 
-        h->last_voltages[1] = NAN;
+        if (LTC2990_ADC_Read_New_Data(h, V3_MSB_REG, &raw15_v3, &valid_v3) == 0 && valid_v3) {
+            h->last_voltages[1] = LTC2990_Code15_To_CurrentA(raw15_v3);
+        }
+
+        h->last_voltages[0] = current_v1;
+        h->last_voltages[1] = current_v3;
+
+        h->last_voltages[0] = current_v3;//remove for test
+
         h->last_voltages[2] = NAN;
         h->last_voltages[3] = NAN;
+
     }
 }
 
