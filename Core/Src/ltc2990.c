@@ -66,7 +66,7 @@ int LTC2990_Init(LTC2990_Handle_t *h, I2C_HandleTypeDef *hi2c, uint8_t addr7, LT
     uint8_t control =
         (role == VOLTAGE) ?
         (CTRL_ALL | V1_V2_V3_V4) :
-        (CTRL_V1_ONLY | MODE_V1mV2_TR2);
+        (CTRL_ALL | MODE_V1mV2_TR2);
 
     uint8_t clear_mask = TEMP_MEAS_MODE_MASK | VOLTAGE_MODE_MASK;
 
@@ -196,14 +196,15 @@ float LTC2990_Code_To_Single_Ended_Voltage(LTC2990_Handle_t *handle, uint16_t co
 float LTC2990_Code15_To_CurrentA(uint16_t raw15)
 {
     const float a_per_count = 19.42e-6f / RSENSE_OHM;
-    uint16_t mag = raw15 & 0x3FFF;
-    uint8_t sign = (raw15 >> 14) & 0x01;
-
-    if (sign == 0) {
-        return (float)mag * a_per_count;
-    } else {
-        return -(float)(mag + 1u) * a_per_count;
+    int16_t signed_code;
+    
+    if (raw15 & 0x4000) { //negative value
+        signed_code = (int16_t)(raw15 | 0xC000); 
+    } else {//positive value
+        signed_code = (int16_t)(raw15);
     }
+
+    return (float)signed_code * a_per_count;
 }
 
 
