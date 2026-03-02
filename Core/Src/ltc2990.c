@@ -43,10 +43,10 @@ static inline void i2c_unlock(LTC2990_Handle_t *h)
 static inline uint8_t status_bit_from_msb(uint8_t msb_reg)
 {
     switch (msb_reg) {
-        case V1_MSB_REG: return 2;
-        case V2_MSB_REG: return 3;
-        case V3_MSB_REG: return 4;
-        case V4_MSB_REG: return 5;
+        case V1_MSB_REG: return 0;
+        case V2_MSB_REG: return 1;
+        case V3_MSB_REG: return 2;
+        case V4_MSB_REG: return 3;
         default:         return 0xFF;
     }
 }
