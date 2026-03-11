@@ -259,6 +259,14 @@ void telemetry_timesync_process_queue(void)
 #define NET_TIMESYNC_MAX_STEP_MS 30000 /* safety clamp (already in your file) */
 #endif
 
+#ifndef NET_TIMESYNC_MAX_RTT_MS
+#define NET_TIMESYNC_MAX_RTT_MS 10000 /* reject obviously bad round-trip delays */
+#endif
+
+#ifndef NET_TIMESYNC_MIN_UNIX_MS
+#define NET_TIMESYNC_MIN_UNIX_MS 946684800000ULL /* 2000-01-01T00:00:00Z */
+#endif
+
 #ifndef NET_TIMESYNC_SMOOTH_DIV
 #define NET_TIMESYNC_SMOOTH_DIV 4 /* slew = offset/div */
 #endif
@@ -285,17 +293,32 @@ static SedsResult on_timesync(const SedsPacketView *pkt, void *user)
     /* t4 = client receive time, in the SAME local/raw clock domain as t1 */
     const uint64_t t4 = tx_raw_now_ms_locked();
 
+    /* Drop malformed/corrupt responses before computing offset. */
+    if (t1 == 0 || t2 == 0 || t3 == 0)
+      return SEDS_OK;
+
+    /* t2/t3 are server-clock timestamps and must be monotonic. */
+    if (t3 < t2)
+      return SEDS_OK;
+
+    /* t1/t4 are local raw-clock timestamps and must be monotonic. */
+    if (t4 < t1)
+      return SEDS_OK;
+
     int64_t offset_ms = 0;
     uint64_t delay_ms = 0;
     compute_offset_delay(t1, t2, t3, t4, &offset_ms, &delay_ms);
 
+    if (delay_ms > NET_TIMESYNC_MAX_RTT_MS)
+      return SEDS_OK;
+
+    if (offset_ms > (int64_t)NET_TIMESYNC_MAX_STEP_MS ||
+        offset_ms < -(int64_t)NET_TIMESYNC_MAX_STEP_MS)
+      return SEDS_OK;
+
     g_last_delay_ms = delay_ms;
 
 #if !TELEMETRY_TIME_MASTER
-    /* Safety clamp: ignore insane jumps */
-    // if (offset_ms > NET_TIMESYNC_MAX_STEP_MS || offset_ms < -NET_TIMESYNC_MAX_STEP_MS)
-    //   return SEDS_OK;
-
     g_last_offset_ms = offset_ms;
 
     /*
@@ -330,10 +353,20 @@ static SedsResult on_timesync(const SedsPacketView *pkt, void *user)
        * then changing g_master_offset_ms would “jump” telemetry_unix_ms().
        * Compensate unix_base_ms by the same delta to keep unix time continuous.
        */
-      if (g_unix_valid)
-        g_unix_base_ms -= applied;
+      const int64_t raw_now = (int64_t)tx_raw_now_ms_locked();
+      const int64_t min_offset = -raw_now + 1; /* keep telemetry_now_ms > 0 */
+      int64_t new_master_offset = g_master_offset_ms + applied;
 
-      g_master_offset_ms += applied;
+      /* Clamp to a safe floor so a bad packet can never pin local time at 0. */
+      if (new_master_offset < min_offset)
+        new_master_offset = min_offset;
+
+      /* Maintain unix continuity based on the offset that was actually applied. */
+      const int64_t applied_actual = new_master_offset - g_master_offset_ms;
+      if (g_unix_valid && applied_actual != 0)
+        g_unix_base_ms -= applied_actual;
+
+      g_master_offset_ms = new_master_offset;
       g_master_offset_valid = 1;
     }
 #endif
@@ -379,10 +412,19 @@ static SedsResult on_timesync(const SedsPacketView *pkt, void *user)
     uint64_t unix_ms = 0;
     memcpy(&unix_ms, pkt->payload + 8, 8);
 
-    const uint64_t half_delay = g_last_delay_ms / 2ULL;
-    const int64_t now = (int64_t)telemetry_now_ms_locked();
+    if (unix_ms < NET_TIMESYNC_MIN_UNIX_MS)
+      return SEDS_OK;
 
-    g_unix_base_ms = (int64_t)(unix_ms + half_delay) - now;
+    const uint64_t half_delay = g_last_delay_ms / 2ULL;
+    if (unix_ms > (UINT64_MAX - half_delay))
+      return SEDS_OK;
+
+    const int64_t now = (int64_t)telemetry_now_ms_locked();
+    const int64_t new_base = (int64_t)(unix_ms + half_delay) - now;
+    if ((now + new_base) <= 0)
+      return SEDS_OK;
+
+    g_unix_base_ms = new_base;
     g_unix_valid = 1;
 #endif
     return SEDS_OK;
