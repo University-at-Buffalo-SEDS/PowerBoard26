@@ -50,6 +50,7 @@ static void print_data_no_telem(void *data, size_t len) {
 
 static uint8_t g_can_rx_subscribed = 0U;
 static int32_t g_can_side_id = -1;
+static int32_t g_sd_side_id = -1;
 static uint8_t g_local_unix_valid = 0U;
 static uint64_t g_local_unix_ms = 0ULL;
 
@@ -308,6 +309,7 @@ SedsResult init_telemetry_router(void) {
     g_router.r = NULL;
     g_router.created = 0U;
     g_can_side_id = -1;
+    g_sd_side_id = -1;
     return SEDS_ERR;
   }
 
@@ -317,6 +319,12 @@ SedsResult init_telemetry_router(void) {
     g_can_side_id = -1;
   }
 
+  g_sd_side_id = seds_router_add_side_packet(r, "sd", 2U, on_sd_packet, NULL, false);
+  if (g_sd_side_id < 0) {
+    printf("Error: failed to add SD side: %ld\r\n", (long)g_sd_side_id);
+    g_sd_side_id = -1;
+  }
+
   result = telemetry_configure_timesync_locked(r);
   if (result != SEDS_OK) {
     printf("Error: failed to configure telemetry timesync: %d\r\n", (int)result);
@@ -324,6 +332,7 @@ SedsResult init_telemetry_router(void) {
     g_router.r = NULL;
     g_router.created = 0U;
     g_can_side_id = -1;
+    g_sd_side_id = -1;
     return result;
   }
 
@@ -577,6 +586,34 @@ SedsResult print_telemetry_error(const int32_t error_code) {
     (void)log_error_asynchronous("Error: seds_error_to_string failed: %d\r\n", (int)res);
   }
 
+  return res;
+#endif
+}
+
+SedsResult on_sd_packet(const SedsPacketView *pkt, void *user) {
+#ifndef TELEMETRY_ENABLED
+  (void)pkt;
+  (void)user;
+  return SEDS_OK;
+#else
+  if (!pkt) {
+    return SEDS_BAD_ARG;
+  }
+
+  const int need = seds_pkt_to_string_len(pkt);
+  if (need <= 0) {
+    return (SedsResult)need;
+  }
+
+  char buf[(size_t)need];
+  SedsResult res = seds_pkt_to_string(pkt, buf, sizeof(buf));
+  if (res == SEDS_OK) {
+    printf("[SD] %s\r\n", buf);
+  } else {
+    printf("[SD] seds_pkt_to_string failed: %d\r\n", (int)res);
+  }
+
+  (void)user;
   return res;
 #endif
 }
