@@ -283,15 +283,36 @@ SedsResult telemetry_poll_timesync(void) {
 #endif
 }
 
+SedsResult telemetry_announce_discovery(void) {
+#ifndef TELEMETRY_ENABLED
+  return SEDS_OK;
+#else
+  if (init_telemetry_router() != SEDS_OK) {
+    return SEDS_ERR;
+  }
+
+  return seds_router_announce_discovery(g_router.r);
+#endif
+}
+
+SedsResult telemetry_poll_discovery(void) {
+#ifndef TELEMETRY_ENABLED
+  return SEDS_OK;
+#else
+  if (init_telemetry_router() != SEDS_OK) {
+    return SEDS_ERR;
+  }
+
+  return seds_router_poll_discovery(g_router.r, NULL);
+#endif
+}
+
 SedsResult init_telemetry_router(void) {
 #ifndef TELEMETRY_ENABLED
   return SEDS_OK;
 #else
   SedsRouter *r = NULL;
   SedsResult result = SEDS_OK;
-  static const SedsLocalEndpointDesc local_handlers[] = {
-      {.endpoint = SEDS_EP_SD_CARD, .packet_handler = on_sd_packet, .user = NULL},
-  };
 
   if (g_router.created && g_router.r) {
     return SEDS_OK;
@@ -305,8 +326,7 @@ SedsResult init_telemetry_router(void) {
     }
   }
 
-  r = seds_router_new(Seds_RM_Relay, node_now_since_ms, NULL, local_handlers,
-                      sizeof(local_handlers) / sizeof(local_handlers[0]));
+  r = seds_router_new(Seds_RM_Relay, node_now_since_ms, NULL, NULL, 0U);
   if (!r) {
     printf("Error: failed to create router\r\n");
     g_router.r = NULL;
@@ -324,6 +344,16 @@ SedsResult init_telemetry_router(void) {
   result = telemetry_configure_timesync_locked(r);
   if (result != SEDS_OK) {
     printf("Error: failed to configure telemetry timesync: %d\r\n", (int)result);
+    seds_router_free(r);
+    g_router.r = NULL;
+    g_router.created = 0U;
+    g_can_side_id = -1;
+    return result;
+  }
+
+  result = seds_router_announce_discovery(r);
+  if (result != SEDS_OK) {
+    printf("Error: failed to announce discovery: %d\r\n", (int)result);
     seds_router_free(r);
     g_router.r = NULL;
     g_router.created = 0U;
@@ -356,8 +386,8 @@ SedsResult log_telemetry_synchronous(SedsDataType data_type, const void *data,
     return SEDS_ERR;
   }
 
-  return seds_router_log_typed_ex(g_router.r, data_type, data, element_count, element_size,
-                                  guess_kind_from_elem_size(element_size), NULL, 0);
+  return seds_router_log_typed(g_router.r, data_type, data, element_count, element_size,
+                               guess_kind_from_elem_size(element_size));
 #else
   (void)data_type;
   print_data_no_telem((void *)data, element_count * element_size);
@@ -376,8 +406,8 @@ SedsResult log_telemetry_asynchronous(SedsDataType data_type, const void *data,
     return SEDS_ERR;
   }
 
-  return seds_router_log_typed_ex(g_router.r, data_type, data, element_count, element_size,
-                                  guess_kind_from_elem_size(element_size), NULL, 1);
+  return seds_router_log_queue_typed(g_router.r, data_type, data, element_count, element_size,
+                                     guess_kind_from_elem_size(element_size));
 #else
   (void)data_type;
   print_data_no_telem((void *)data, element_count * element_size);
@@ -485,7 +515,7 @@ static SedsResult log_error_impl(uint8_t queue, const char *fmt, va_list args) {
 
   if (len < 0) {
     const char *empty = "";
-    return seds_router_log_string_ex(g_router.r, SEDS_DT_GENERIC_ERROR, empty, 0U, NULL, queue);
+    return seds_router_log_string_ex(g_router.r, SEDS_DT_TELEMETRY_ERROR, empty, 0U, NULL, queue);
   }
 
   if (len > 512) {
@@ -496,11 +526,11 @@ static SedsResult log_error_impl(uint8_t queue, const char *fmt, va_list args) {
   written = vsnprintf(buf, (size_t)len + 1U, fmt, args);
   if (written < 0) {
     const char *empty = "";
-    return seds_router_log_string_ex(g_router.r, SEDS_DT_GENERIC_ERROR, empty, 0U, NULL, queue);
+    return seds_router_log_string_ex(g_router.r, SEDS_DT_TELEMETRY_ERROR, empty, 0U, NULL, queue);
   }
 
-  return seds_router_log_string_ex(g_router.r, SEDS_DT_GENERIC_ERROR, buf, (size_t)written, NULL,
-                                   queue);
+  return seds_router_log_string_ex(g_router.r, SEDS_DT_TELEMETRY_ERROR, buf, (size_t)written,
+                                   NULL, queue);
 }
 
 SedsResult log_error_asynchronous(const char *fmt, ...) {
@@ -581,34 +611,6 @@ SedsResult print_telemetry_error(const int32_t error_code) {
     (void)log_error_asynchronous("Error: seds_error_to_string failed: %d\r\n", (int)res);
   }
 
-  return res;
-#endif
-}
-
-SedsResult on_sd_packet(const SedsPacketView *pkt, void *user) {
-#ifndef TELEMETRY_ENABLED
-  (void)pkt;
-  (void)user;
-  return SEDS_OK;
-#else
-  if (!pkt) {
-    return SEDS_BAD_ARG;
-  }
-
-  const int need = seds_pkt_to_string_len(pkt);
-  if (need <= 0) {
-    return (SedsResult)need;
-  }
-
-  char buf[(size_t)need];
-  SedsResult res = seds_pkt_to_string(pkt, buf, sizeof(buf));
-  if (res == SEDS_OK) {
-    printf("[SD] %s\r\n", buf);
-  } else {
-    printf("[SD] seds_pkt_to_string failed: %d\r\n", (int)res);
-  }
-
-  (void)user;
   return res;
 #endif
 }
