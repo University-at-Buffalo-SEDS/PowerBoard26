@@ -225,6 +225,29 @@ static void telemetry_can_rx(const uint8_t *data, size_t len, void *user) {
   rx_asynchronous(data, len);
 }
 
+static SedsResult telemetry_sd_card_packet_handler(const SedsPacketView *pkt, void *user) {
+  (void)user;
+
+  if (!pkt) {
+    return SEDS_BAD_ARG;
+  }
+
+  const int32_t needed = seds_pkt_to_string_len(pkt);
+  if (needed <= 0) {
+    return (SedsResult)needed;
+  }
+
+  char buf[(size_t)needed];
+  const SedsResult result = seds_pkt_to_string(pkt, buf, sizeof(buf));
+  if (result != SEDS_OK) {
+    printf("Error: SD card packet stringify failed: %d\r\n", (int)result);
+    return result;
+  }
+
+  printf("[SD_CARD] %s\r\n", buf);
+  return SEDS_OK;
+}
+
 void rx_asynchronous(const uint8_t *bytes, size_t len) {
 #ifndef TELEMETRY_ENABLED
   (void)bytes;
@@ -313,6 +336,12 @@ SedsResult init_telemetry_router(void) {
 #else
   SedsRouter *r = NULL;
   SedsResult result = SEDS_OK;
+  const SedsLocalEndpointDesc locals[] = {
+      {.endpoint = SEDS_EP_SD_CARD,
+       .packet_handler = telemetry_sd_card_packet_handler,
+       .serialized_handler = NULL,
+       .user = NULL},
+  };
 
   if (g_router.created && g_router.r) {
     return SEDS_OK;
@@ -326,7 +355,8 @@ SedsResult init_telemetry_router(void) {
     }
   }
 
-  r = seds_router_new(Seds_RM_Relay, node_now_since_ms, NULL, NULL, 0U);
+  r = seds_router_new(Seds_RM_Relay, node_now_since_ms, NULL, locals,
+                      sizeof(locals) / sizeof(locals[0]));
   if (!r) {
     printf("Error: failed to create router\r\n");
     g_router.r = NULL;
