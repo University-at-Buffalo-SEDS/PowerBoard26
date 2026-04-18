@@ -337,10 +337,10 @@ SedsResult init_telemetry_router(void) {
   SedsRouter *r = NULL;
   SedsResult result = SEDS_OK;
   const SedsLocalEndpointDesc locals[] = {
-      {.endpoint = SEDS_EP_SD_CARD,
-       .packet_handler = telemetry_sd_card_packet_handler,
-       .serialized_handler = NULL,
-       .user = NULL},
+      // {.endpoint = SEDS_EP_SD_CARD,
+      //  .packet_handler = telemetry_sd_card_packet_handler,
+      //  .serialized_handler = NULL,
+      //  .user = NULL},
   };
 
   if (g_router.created && g_router.r) {
@@ -365,7 +365,7 @@ SedsResult init_telemetry_router(void) {
     return SEDS_ERR;
   }
 
-  g_can_side_id = seds_router_add_side_serialized(r, "can", 3U, tx_send, NULL, false);
+  g_can_side_id = seds_router_add_side_serialized(r, "can", 3U, tx_send, NULL, true);
   if (g_can_side_id < 0) {
     printf("Error: failed to add CAN side: %ld\r\n", (long)g_can_side_id);
     g_can_side_id = -1;
