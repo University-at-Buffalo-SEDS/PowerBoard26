@@ -11,6 +11,7 @@
 TX_THREAD sensor_thread;
 
 #define SENSOR_THREAD_STACK_SIZE (8U * 1024U)
+#define SENSOR_LOG_PERIOD_TICKS TX_TIMER_TICKS_PER_SECOND
 extern I2C_HandleTypeDef hi2c2;
 
 typedef struct
@@ -44,7 +45,7 @@ void sensor_thread_entry(ULONG entry_input)
     for (;;)
     {
 
-        tx_thread_sleep(500);
+        tx_thread_sleep(SENSOR_LOG_PERIOD_TICKS);
         telemetry_ltc2990_update_voltage(ltc2990_voltage_handle);
         telemetry_ltc2990_update_current(ltc2990_current_handle);
         // printf("Sensor thread loop\n");
