@@ -3,8 +3,10 @@
 
 #include "app_threadx.h"
 #include "can_bus.h"
+#include "main.h"
 #include "sedsprintf.h"
 #include "stm32g4xx_hal.h"
+#include "stm32g4xx_hal_gpio.h"
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -216,7 +218,7 @@ SedsResult tx_send(const uint8_t *bytes, size_t len, void *user) {
   if (!bytes || len == 0U) {
     return SEDS_BAD_ARG;
   }
-
+  HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
   return (can_bus_send_large(bytes, len, 0x03) == HAL_OK) ? SEDS_OK : SEDS_IO;
 }
 
