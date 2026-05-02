@@ -11,7 +11,7 @@
 TX_THREAD sensor_thread;
 
 #define SENSOR_THREAD_STACK_SIZE (8U * 1024U)
-#define SENSOR_LOG_PERIOD_TICKS TX_TIMER_TICKS_PER_SECOND
+#define SENSOR_LOG_PERIOD_TICKS (5U * TX_TIMER_TICKS_PER_SECOND)
 extern I2C_HandleTypeDef hi2c2;
 
 typedef struct
