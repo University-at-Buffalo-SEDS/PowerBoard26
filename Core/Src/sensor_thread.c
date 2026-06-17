@@ -40,7 +40,7 @@ void sensor_thread_entry(ULONG entry_input)
         log_error_asynchronous("LTC2990 init failed");
         Error_Handler();
     }
-    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
 
     for (;;)
     {
@@ -63,13 +63,13 @@ UINT create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_vol
         return TX_POOL_ERROR;
     }
 
-    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
     /* Keep entry argument data in persistent storage (not stack local). */
     sensor_ltc_handles = (ltc_handles_t){
         .voltage_handle = ltc2990_voltage_handle_ptr,
         .current_handle = ltc2990_current_handle_ptr};
-    HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
+    // HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_SET);
 
     UINT status = tx_thread_create(&sensor_thread,
                                    "Sensor Thread",
