@@ -2,6 +2,7 @@
 #include "PB-Threads.h"
 #include "tx_api.h"
 #include "telemetry.h"
+#include "ota_stream.h"
 #include "can_bus.h"
 #include "main.h"
 
@@ -24,6 +25,7 @@ void telemetry_thread_entry(ULONG initial_input)
         (void)telemetry_poll_discovery();
         (void)process_all_queues_timeout(50);
         (void)telemetry_poll_timesync();
+        ota_stream_poll();
 
         tx_thread_sleep(1);
     }
