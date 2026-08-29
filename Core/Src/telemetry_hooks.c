@@ -14,6 +14,8 @@ volatile uint32_t g_telemetry_alloc_fail = 0U;
 volatile uint32_t g_telemetry_panic_count = 0U;
 volatile uint32_t g_telemetry_alloc_count = 0U;
 volatile uint32_t g_telemetry_free_count = 0U;
+volatile uint32_t g_telemetry_max_alloc_request = 0U;
+volatile uint32_t g_telemetry_alloc_failure_request = 0U;
 volatile ULONG g_telemetry_pool_available = 0U;
 volatile ULONG g_telemetry_pool_low_water = ~0UL;
 volatile ULONG g_telemetry_pool_fragments = 0U;
@@ -194,6 +196,10 @@ void *telemetryMalloc(size_t xSize)
         /* Rust allocator contract expects non-NULL for successful alloc. */
         xSize = 1U;
     }
+    if (xSize > g_telemetry_max_alloc_request)
+    {
+        g_telemetry_max_alloc_request = (uint32_t)xSize;
+    }
 
     /*
      * Allow a brief wait so telemetry bursts don't immediately fail allocator
@@ -204,6 +210,7 @@ void *telemetryMalloc(size_t xSize)
         telemetry_memory_profile_sample();
         g_telemetry_alloc_failure_available = g_telemetry_pool_available;
         g_telemetry_alloc_failure_fragments = g_telemetry_pool_fragments;
+        g_telemetry_alloc_failure_request = (uint32_t)xSize;
         g_telemetry_alloc_fail++;
         return NULL;
     }

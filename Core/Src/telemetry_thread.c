@@ -23,7 +23,7 @@ void telemetry_thread_entry(ULONG initial_input)
     {
         can_bus_process_rx();
         (void)telemetry_poll_discovery();
-        (void)process_all_queues_timeout(50);
+        (void)dispatch_tx_queue_timeout(50);
         (void)telemetry_poll_timesync();
         ota_stream_poll();
 

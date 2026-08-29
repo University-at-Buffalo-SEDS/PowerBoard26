@@ -267,10 +267,10 @@ void rx_asynchronous(const uint8_t *bytes, size_t len) {
   }
 
   if (g_can_side_id >= 0) {
-    (void)seds_router_rx_packed_packet_to_queue_from_side(
+    (void)seds_router_receive_packed_from_side(
         g_router.r, (uint32_t)g_can_side_id, bytes, len);
   } else {
-    (void)seds_router_rx_packed_packet_to_queue(g_router.r, bytes, len);
+    (void)seds_router_receive_packed(g_router.r, bytes, len);
   }
 #endif
 }
@@ -449,8 +449,8 @@ SedsResult log_telemetry_asynchronous(SedsDataType data_type, const void *data,
     return SEDS_ERR;
   }
 
-  return seds_router_log_queue_typed(g_router.r, data_type, data, element_count, element_size,
-                                     guess_kind_from_elem_size(element_size));
+  return seds_router_log_typed(g_router.r, data_type, data, element_count, element_size,
+                               guess_kind_from_elem_size(element_size));
 #else
   (void)data_type;
   print_data_no_telem((void *)data, element_count * element_size);
@@ -468,7 +468,7 @@ SedsResult log_telemetry_string_asynchronous(SedsDataType data_type, const char 
     return SEDS_ERR;
   }
 
-  return seds_router_log_string_ex(g_router.r, data_type, str, strlen(str), NULL, 1);
+  return seds_router_log_string_ex(g_router.r, data_type, str, strlen(str), NULL, 0);
 #else
   (void)data_type;
   (void)str;
