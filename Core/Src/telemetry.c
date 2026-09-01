@@ -1,5 +1,6 @@
 // telemetry.c
 #include "telemetry.h"
+#include "sim_network_probe.h"
 #include "ota_stream.h"
 
 #include "app_threadx.h"
@@ -63,6 +64,11 @@ RouterState g_router = {.r = NULL, .created = 0U, .start_time = 0ULL};
 volatile uint32_t g_telemetry_discovery_seen = 0U;
 volatile uint32_t g_telemetry_timesync_valid = 0U;
 volatile uint32_t g_telemetry_network_ready = 0U;
+volatile uint32_t g_telemetry_peer_mask = 0U;
+volatile uint32_t g_sim_heartbeat_attempts = 0U;
+volatile uint32_t g_sim_heartbeat_ok = 0U;
+volatile uint32_t g_sim_heartbeat_fail = 0U;
+volatile uint32_t g_sim_heartbeat_wire_tx = 0U;
 
 static uint64_t tx_raw_now_ms_locked(void) {
   const uint32_t ticks32 = (uint32_t)tx_time_get();
@@ -225,12 +231,18 @@ SedsResult tx_send(const uint8_t *bytes, size_t len, void *user) {
   if (!bytes || len == 0U) {
     return SEDS_BAD_ARG;
   }
+  sim_probe_observe_can_tx(bytes, len);
   HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-  return (can_bus_send_large(bytes, len, 0x03) == HAL_OK) ? SEDS_OK : SEDS_IO;
+  const uint32_t can_id =
+      sim_probe_packed_data_type(bytes, len) == (uint32_t)SEDS_DT_HEARTBEAT
+          ? 0x002U
+          : 0x102U;
+  return (can_bus_send_large(bytes, len, can_id) == HAL_OK) ? SEDS_OK : SEDS_IO;
 }
 
 static void telemetry_can_rx(const uint8_t *data, size_t len, void *user) {
   (void)user;
+  sim_probe_observe_packed(data, len);
   rx_asynchronous(data, len);
 }
 
@@ -350,7 +362,11 @@ SedsResult telemetry_poll_discovery(void) {
     return SEDS_ERR;
   }
 
-  const SedsResult result = seds_router_poll_discovery(g_router.r, NULL);
+  bool did_queue = false;
+  const SedsResult result = seds_router_poll_discovery(g_router.r, &did_queue);
+  if (result == SEDS_OK) {
+    sim_probe_emit_heartbeat(g_router.r, telemetry_now_ms());
+  }
   telemetry_update_network_health(g_router.r);
   return result;
 #endif
@@ -363,6 +379,12 @@ SedsResult init_telemetry_router(void) {
   SedsRouter *r = NULL;
   SedsResult result = SEDS_OK;
   const SedsLocalEndpointDesc locals[] = {
+#if SEDS_FIRMWARE_SIM_TEST
+      {.endpoint = SEDS_EP_HEART_BEAT,
+       .packet_handler = sim_probe_heartbeat_handler,
+       .packed_handler = NULL,
+       .user = NULL},
+#endif
       // {.endpoint = SEDS_EP_SD_CARD,
       //  .packet_handler = telemetry_sd_card_packet_handler,
       //  .packed_handler = NULL,

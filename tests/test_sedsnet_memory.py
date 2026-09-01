@@ -12,8 +12,8 @@ class SedsnetMemoryTests(unittest.TestCase):
             encoding="utf-8"
         )
         pool = int(re.search(r"TX_APP_MEM_POOL_SIZE\s+(\d+)", config).group(1))
-        thread_stacks = 16 * 1024 + 8 * 1024
-        self.assertEqual(pool, 61440)
+        thread_stacks = 13824 + 8 * 1024
+        self.assertEqual(pool, 65536)
         self.assertGreaterEqual(pool - thread_stacks, 36 * 1024)
 
     def test_sedsnet_shared_budget_fits_embedded_discovery(self):
@@ -27,15 +27,15 @@ class SedsnetMemoryTests(unittest.TestCase):
         start = int(
             re.search(r'set\(SEDSNET_ENV_STARTING_QUEUE_SIZE "(\d+)"', cmake).group(1)
         )
-        self.assertEqual(budget, 12288)
+        self.assertEqual(budget, 8192)
         self.assertEqual(recent, 16)
-        self.assertEqual(start, 1024)
+        self.assertEqual(start, 512)
         self.assertGreater(budget, recent * 8 + 2 * start)
 
     def test_sedsnet_uses_an_isolated_threadx_pool(self):
         cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
         app = (ROOT / "Core" / "Src" / "app_threadx.c").read_text(encoding="utf-8")
-        self.assertIn('POWER_SEDSNET_MEMORY_POOL_SIZE "32768"', cmake)
+        self.assertIn('POWER_SEDSNET_MEMORY_POOL_SIZE "39424"', cmake)
         self.assertIn("static TX_BYTE_POOL sedsnet_byte_pool", app)
         self.assertIn("POWER_SEDSNET_MEMORY_POOL_SIZE, TX_NO_WAIT", app)
         self.assertIn("telemetry_set_byte_pool(&sedsnet_byte_pool)", app)
@@ -46,7 +46,7 @@ class SedsnetMemoryTests(unittest.TestCase):
         )
         threadx = (ROOT / "Core" / "Inc" / "tx_user.h").read_text(encoding="utf-8")
         app = (ROOT / "Core" / "Src" / "app_threadx.c").read_text(encoding="utf-8")
-        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (16U * 1024U)", telemetry_thread)
+        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (13824U)", telemetry_thread)
         sensor_thread = (ROOT / "Core" / "Src" / "sensor_thread.c").read_text(
             encoding="utf-8"
         )

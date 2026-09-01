@@ -41,6 +41,10 @@ set_source_files_properties(
 endif()
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
+option(SEDS_FIRMWARE_SIM_TEST "Enable simulator-only network observability" OFF)
+if(SEDS_FIRMWARE_SIM_TEST)
+    add_compile_definitions(SEDS_FIRMWARE_SIM_TEST=1)
+endif()
 
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
@@ -89,11 +93,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 # SEDSNet v4
 set(SEDSNET_DEVICE_IDENTIFIER "PB" CACHE STRING "" FORCE)
 set(SEDSNET_MAX_STACK_PAYLOAD "128" CACHE STRING "" FORCE)
-set(SEDSNET_MAX_QUEUE_BUDGET "12288" CACHE STRING "" FORCE)
+set(SEDSNET_MAX_QUEUE_BUDGET "8192" CACHE STRING
+    "Bound transient discovery storage on the CAN-only Power router" FORCE)
 set(SEDSNET_MAX_RECENT_RX_IDS "16" CACHE STRING "" FORCE)
-set(POWER_SEDSNET_MEMORY_POOL_SIZE "32768" CACHE STRING
+set(POWER_SEDSNET_MEMORY_POOL_SIZE "39424" CACHE STRING
     "Isolated SEDSNet allocator pool carved from the unchanged ThreadX application pool" FORCE)
-set(SEDSNET_ENV_STARTING_QUEUE_SIZE "1024" CACHE STRING "" FORCE)
+set(SEDSNET_ENV_STARTING_QUEUE_SIZE "512" CACHE STRING "" FORCE)
 set(SEDSNET_ENV_QUEUE_GROW_STEP "1.0" CACHE STRING "" FORCE)
 set(SEDSNET_ENV_PAYLOAD_COMPRESS_THRESHOLD "30" CACHE STRING "" FORCE)
 set(SEDSNET_TARGET "thumbv7em-none-eabihf" CACHE STRING "" FORCE)
