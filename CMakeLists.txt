@@ -48,11 +48,15 @@ endif()
 
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    USER_VECT_TAB_ADDRESS VECT_TAB_OFFSET=0x00004200U)
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
     -T "${CMAKE_SOURCE_DIR}/STM32G491XX_FLASH.ld")
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
+target_compile_definitions(STM32_Drivers PRIVATE
+    USER_VECT_TAB_ADDRESS VECT_TAB_OFFSET=0x00004200U)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -65,6 +69,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/telemetry_thread.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/can_bus.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/telemetry.c 
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/av_bay_underglow.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/telemetry_hooks.c 
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/ltc2990.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/sensor_thread.c
@@ -96,15 +101,11 @@ set(SEDSNET_MAX_STACK_PAYLOAD "128" CACHE STRING "" FORCE)
 set(SEDSNET_MAX_QUEUE_BUDGET "8192" CACHE STRING
     "Bound transient discovery storage on the CAN-only Power router" FORCE)
 set(SEDSNET_MAX_RECENT_RX_IDS "16" CACHE STRING "" FORCE)
-set(POWER_SEDSNET_MEMORY_POOL_SIZE "39424" CACHE STRING
-    "Isolated SEDSNet allocator pool carved from the unchanged ThreadX application pool" FORCE)
 set(SEDSNET_ENV_STARTING_QUEUE_SIZE "512" CACHE STRING "" FORCE)
 set(SEDSNET_ENV_QUEUE_GROW_STEP "1.0" CACHE STRING "" FORCE)
 set(SEDSNET_ENV_PAYLOAD_COMPRESS_THRESHOLD "30" CACHE STRING "" FORCE)
 set(SEDSNET_TARGET "thumbv7em-none-eabihf" CACHE STRING "" FORCE)
 include(cmake/sedsnet_fetch.cmake)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    POWER_SEDSNET_MEMORY_POOL_SIZE=${POWER_SEDSNET_MEMORY_POOL_SIZE})
 
 # Option defaults to ON
 option(ENABLE_TELEMETRY "Enable the telemetry subsystem" ON)

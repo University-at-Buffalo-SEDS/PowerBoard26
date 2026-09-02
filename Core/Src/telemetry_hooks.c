@@ -10,6 +10,8 @@ static TX_MUTEX g_telemetry_mutex;
 static UINT g_telemetry_mutex_ready = 0U;
 volatile uint32_t g_telemetry_lock_get_fail = 0U;
 volatile uint32_t g_telemetry_lock_put_fail = 0U;
+volatile uint32_t g_telemetry_lock_get_status = TX_SUCCESS;
+volatile uint32_t g_telemetry_lock_put_status = TX_SUCCESS;
 volatile uint32_t g_telemetry_alloc_fail = 0U;
 volatile uint32_t g_telemetry_panic_count = 0U;
 volatile uint32_t g_telemetry_alloc_count = 0U;
@@ -23,6 +25,8 @@ volatile ULONG g_telemetry_alloc_failure_available = 0U;
 volatile ULONG g_telemetry_alloc_failure_fragments = 0U;
 static volatile uint8_t g_last_err_memory_hint = 0U;
 static volatile uint8_t g_last_err_mutex_hint = 0U;
+volatile uint32_t g_seds_error_count = 0U;
+volatile uint32_t g_seds_error_words[8] = {0U};
 
 static void telemetry_busy_delay(volatile uint32_t n)
 {
@@ -154,6 +158,7 @@ void telemetry_lock(void)
     }
 
     UINT st = tx_mutex_get(&g_telemetry_mutex, TX_WAIT_FOREVER);
+    g_telemetry_lock_get_status = st;
     if (st != TX_SUCCESS)
     {
         g_telemetry_lock_get_fail++;
@@ -175,6 +180,7 @@ void telemetry_unlock(void)
     }
 
     UINT st = tx_mutex_put(&g_telemetry_mutex);
+    g_telemetry_lock_put_status = st;
     if (st != TX_SUCCESS)
     {
         g_telemetry_lock_put_fail++;
@@ -233,6 +239,11 @@ void seds_error_msg(const char *str, size_t len)
 {
     if (str != NULL && len > 0U)
     {
+        g_seds_error_count++;
+        memset((void *)g_seds_error_words, 0, sizeof(g_seds_error_words));
+        size_t copy_len = len < sizeof(g_seds_error_words) ?
+                          len : sizeof(g_seds_error_words);
+        memcpy((void *)g_seds_error_words, str, copy_len);
         g_last_err_memory_hint = (uint8_t)(
             str_contains_ci_n(str, len, "alloc") ||
             str_contains_ci_n(str, len, "memory") ||
@@ -240,7 +251,6 @@ void seds_error_msg(const char *str, size_t len)
         g_last_err_mutex_hint = (uint8_t)(
             str_contains_ci_n(str, len, "mutex") ||
             str_contains_ci_n(str, len, "lock"));
-        printf("%.*s\r\n", (int)len, str);
     }
 }
 

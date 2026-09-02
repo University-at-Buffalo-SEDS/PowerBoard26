@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "PB-Threads.h"
 #include "tx_api.h"
+#include "tx_thread.h"
 #include "telemetry.h"
 #include "ltc2990.h"
 #include "main.h"
@@ -10,9 +11,10 @@
 
 TX_THREAD sensor_thread;
 
-#define SENSOR_THREAD_STACK_SIZE (8U * 1024U)
+#define SENSOR_THREAD_STACK_SIZE (10U * 1024U)
 #define SENSOR_LOG_PERIOD_TICKS (5U * TX_TIMER_TICKS_PER_SECOND)
 extern I2C_HandleTypeDef hi2c2;
+volatile uint32_t g_sensor_stack_remaining = 0U;
 
 typedef struct
 {
@@ -29,16 +31,20 @@ void sensor_thread_entry(ULONG entry_input)
     LTC2990_Handle_t *ltc2990_voltage_handle = ltc_handles->voltage_handle;
     LTC2990_Handle_t *ltc2990_current_handle = ltc_handles->current_handle;
 
-    // Initialize LTC2990 for voltage mode
-    if (LTC2990_Init(ltc2990_voltage_handle, &hi2c2, LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE) != 0)
+    /* A missing or slow sensor must not take down board networking. The
+       telemetry task has higher priority and initializes SEDSNet first; retry
+       failed devices here without trapping the whole firmware. */
+    while (LTC2990_Init(ltc2990_voltage_handle, &hi2c2,
+                        LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE) != 0)
     {
-        log_error_asynchronous("LTC2990 init failed");
-        Error_Handler();
+        (void)log_error_asynchronous("LTC2990 voltage init failed; retrying");
+        tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
     }
-    else if (LTC2990_Init(ltc2990_current_handle, &hi2c2, LTC2990_I2C_ADDRESS_CURRENT, CURRENT) != 0)
+    while (LTC2990_Init(ltc2990_current_handle, &hi2c2,
+                        LTC2990_I2C_ADDRESS_CURRENT, CURRENT) != 0)
     {
-        log_error_asynchronous("LTC2990 init failed");
-        Error_Handler();
+        (void)log_error_asynchronous("LTC2990 current init failed; retrying");
+        tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
     }
     // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
 
@@ -56,7 +62,6 @@ UINT create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_vol
 {
     CHAR *pointer;
 
-    /* Allocate the stack for test  */
     if (tx_byte_allocate(byte_pool, (VOID **)&pointer,
                          SENSOR_THREAD_STACK_SIZE, TX_NO_WAIT) != TX_SUCCESS)
     {
@@ -75,7 +80,7 @@ UINT create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_vol
                                    "Sensor Thread",
                                    sensor_thread_entry,
                                    (ULONG)(uintptr_t)&sensor_ltc_handles,
-                                   pointer,                  // stack pointer from tx_byte_allocate
+                                   pointer,
                                    SENSOR_THREAD_STACK_SIZE, // must match allocation size
                                    4,                        // priority
                                    4,                        // preemption threshold

@@ -17,7 +17,13 @@ class QualificationContractTests(unittest.TestCase):
         self.assertIn('"bay"', runner)
         self.assertIn('"tx_probe": "fdcan_tx_ok"', runner)
         self.assertIn('"rx_probe": "fdcan_rx"', runner)
-        self.assertIn('"ground_radio_pico_path"', runner)
+        self.assertIn('"host_nodes"', runner)
+        self.assertIn('"groundstation"', runner)
+        self.assertIn('"rocket_radio"', runner)
+        self.assertIn('"fill_pico"', runner)
+        self.assertIn('"GS_SIM_VALIDATE_VALVE_ROUNDTRIP": "1"', runner)
+        self.assertIn('"probe": "valve_commands_received", "minimum": 1', runner)
+        self.assertIn("forwarded status ACK to GroundStation", runner)
         self.assertIn('simulation_env["SEDS_FIRMWARE_SIM_TEST"] = "1"', runner)
         self.assertIn('run_live(command, "firmware simulation")', runner)
         self.assertIn('running ({int(now - started)}s elapsed)', runner)
@@ -52,6 +58,13 @@ class QualificationContractTests(unittest.TestCase):
         root = Path(build.__file__).resolve().parent
         telemetry = (root / "Core" / "Src" / "telemetry.c").read_text(encoding="utf-8")
         self.assertIn('seds_router_add_side_packed(r, "can", 3U, tx_send, NULL, false)', telemetry)
+
+    def test_underglow_uses_only_native_network_variable_apis(self):
+        root = Path(build.__file__).resolve().parent
+        source = (root / "Core" / "Src" / "av_bay_underglow.c").read_text(encoding="utf-8")
+        self.assertIn("seds_router_enable_network_variable", source)
+        self.assertIn("seds_router_get_network_variable_packed_len", source)
+        self.assertNotIn("seds_router_request_managed_variable", source)
 
 
     def test_periodic_health_check_does_not_serialize_topology(self):
