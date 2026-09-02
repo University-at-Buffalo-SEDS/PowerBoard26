@@ -14,6 +14,8 @@
     "erase_size": 2048,
     "write_alignment": 8,
     "sedsnet_pool": 40000,
+    "persistent_data_base": 134737920,
+    "persistent_data_size": 4096,
     "delta_base": 134709248,
     "delta_size": 24576
   },
@@ -54,6 +56,9 @@
       {"name": "timesync_valid", "symbol": "g_telemetry_timesync_valid"},
       {"name": "underglow_enabled", "symbol": "g_av_bay_underglow_enabled", "maximum": 1},
       {"name": "underglow_updates", "symbol": "g_av_bay_underglow_updates"},
+      {"name": "underglow_persist_restores", "symbol": "g_av_bay_underglow_persist_restores"},
+      {"name": "underglow_persist_writes", "symbol": "g_av_bay_underglow_persist_writes"},
+      {"name": "underglow_persist_errors", "symbol": "g_av_bay_underglow_persist_errors", "maximum": 0},
       {"name": "pool_available", "symbol": "g_telemetry_pool_available", "minimum": 4096, "max_end_drop": 4096},
       {"name": "pool_low_water", "symbol": "g_telemetry_pool_low_water", "minimum": 512},
       {"name": "alloc_failure_request", "symbol": "g_telemetry_alloc_failure_request", "maximum": 0},
