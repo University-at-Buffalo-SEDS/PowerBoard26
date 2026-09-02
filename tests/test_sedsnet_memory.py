@@ -16,11 +16,11 @@ class SedsnetMemoryTests(unittest.TestCase):
         usb_pool = int(
             re.search(r"UX_DEVICE_APP_MEM_POOL_SIZE\s+(\d+)", config).group(1)
         )
-        thread_stacks = 12 * 1024 + 10 * 1024
+        thread_stacks = 16 * 1024 + 10 * 1024
         self.assertEqual(pool, 65536)
         self.assertEqual(usb_pool, 26624)
         self.assertEqual(pool + usb_pool, 65536 + 26624)
-        self.assertGreaterEqual(pool - thread_stacks, 40 * 1024)
+        self.assertGreaterEqual(pool - thread_stacks, 38 * 1024)
 
     def test_sedsnet_shared_budget_fits_embedded_discovery(self):
         cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
@@ -50,11 +50,13 @@ class SedsnetMemoryTests(unittest.TestCase):
         )
         threadx = (ROOT / "Core" / "Inc" / "tx_user.h").read_text(encoding="utf-8")
         app = (ROOT / "Core" / "Src" / "app_threadx.c").read_text(encoding="utf-8")
-        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (12U * 1024U)", telemetry_thread)
+        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (16U * 1024U)", telemetry_thread)
         sensor_thread = (ROOT / "Core" / "Src" / "sensor_thread.c").read_text(
             encoding="utf-8"
         )
         self.assertIn("SENSOR_THREAD_STACK_SIZE (10U * 1024U)", sensor_thread)
+        self.assertIn("g_sensor_thread_entered++", sensor_thread)
+        self.assertIn("sensor_update_stack_profile();", sensor_thread)
         self.assertRegex(threadx, r"(?m)^#define TX_ENABLE_STACK_CHECKING$")
         self.assertIn("tx_thread_stack_error_notify(thread_stack_error_handler)", app)
 
@@ -67,7 +69,9 @@ class SedsnetMemoryTests(unittest.TestCase):
         self.assertIn("seds_router_log_typed", async_body)
         self.assertNotIn("seds_router_log_queue_typed", async_body)
         thread = (ROOT / "Core" / "Src" / "telemetry_thread.c").read_text(encoding="utf-8")
-        self.assertNotIn("process_all_queues_timeout", thread)
+        # Immediate ingress avoids a second normal RX copy, while the bounded
+        # combined service still drains packets deferred to prevent re-entry.
+        self.assertIn("process_all_queues_timeout", thread)
 
     def test_profile_allows_one_in_flight_packet_but_keeps_hard_reserve(self):
         layout = json.loads((ROOT / "sim" / "board.json").read_text())

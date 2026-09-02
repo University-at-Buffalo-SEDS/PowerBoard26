@@ -14,7 +14,19 @@ TX_THREAD sensor_thread;
 #define SENSOR_THREAD_STACK_SIZE (10U * 1024U)
 #define SENSOR_LOG_PERIOD_TICKS (5U * TX_TIMER_TICKS_PER_SECOND)
 extern I2C_HandleTypeDef hi2c2;
-volatile uint32_t g_sensor_stack_remaining = 0U;
+volatile uint32_t g_sensor_thread_entered __attribute__((used, externally_visible)) = 0U;
+volatile uint32_t g_sensor_stack_remaining = SENSOR_THREAD_STACK_SIZE;
+
+static void sensor_update_stack_profile(void)
+{
+    _tx_thread_stack_analyze(&sensor_thread);
+    const uint32_t remaining = (uint32_t)(
+        (uintptr_t)sensor_thread.tx_thread_stack_highest_ptr -
+        (uintptr_t)sensor_thread.tx_thread_stack_start);
+    if (remaining < g_sensor_stack_remaining) {
+        g_sensor_stack_remaining = remaining;
+    }
+}
 
 typedef struct
 {
@@ -27,30 +39,31 @@ static ltc_handles_t sensor_ltc_handles;
 
 void sensor_thread_entry(ULONG entry_input)
 {
+    g_sensor_thread_entered++;
+    sensor_update_stack_profile();
     ltc_handles_t *ltc_handles = (ltc_handles_t *)(uintptr_t)entry_input;
     LTC2990_Handle_t *ltc2990_voltage_handle = ltc_handles->voltage_handle;
     LTC2990_Handle_t *ltc2990_current_handle = ltc_handles->current_handle;
 
-    /* A missing or slow sensor must not take down board networking. The
-       telemetry task has higher priority and initializes SEDSNet first; retry
-       failed devices here without trapping the whole firmware. */
+    /* A missing or slow sensor must not take down board networking. Retry
+       failed devices here with a sleep so telemetry remains runnable. */
     while (LTC2990_Init(ltc2990_voltage_handle, &hi2c2,
                         LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE) != 0)
     {
-        (void)log_error_asynchronous("LTC2990 voltage init failed; retrying");
+        sensor_update_stack_profile();
         tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
     }
     while (LTC2990_Init(ltc2990_current_handle, &hi2c2,
                         LTC2990_I2C_ADDRESS_CURRENT, CURRENT) != 0)
     {
-        (void)log_error_asynchronous("LTC2990 current init failed; retrying");
+        sensor_update_stack_profile();
         tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
     }
     // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
 
     for (;;)
     {
-
+        sensor_update_stack_profile();
         tx_thread_sleep(SENSOR_LOG_PERIOD_TICKS);
         telemetry_ltc2990_update_voltage(ltc2990_voltage_handle);
         telemetry_ltc2990_update_current(ltc2990_current_handle);
@@ -82,8 +95,8 @@ UINT create_sensor_thread(TX_BYTE_POOL *byte_pool, LTC2990_Handle_t *ltc2990_vol
                                    (ULONG)(uintptr_t)&sensor_ltc_handles,
                                    pointer,
                                    SENSOR_THREAD_STACK_SIZE, // must match allocation size
-                                   4,                        // priority
-                                   4,                        // preemption threshold
+                                   2,                        // priority
+                                   2,                        // preemption threshold
                                    TX_NO_TIME_SLICE,
                                    TX_AUTO_START);
     HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);

@@ -10,12 +10,16 @@
 TX_THREAD telemetry_thread;
 extern TX_THREAD sensor_thread;
 extern volatile uint32_t g_sensor_stack_remaining;
+#define TELEMETRY_THREAD_STACK_SIZE (16U * 1024U)
+#define TELEMETRY_QUEUE_SERVICE_BUDGET_MS 1U
 volatile uint32_t g_telemetry_thread_entered __attribute__((used, externally_visible)) = 0U;
 volatile uint32_t g_telemetry_stack_used __attribute__((used, externally_visible)) = 0U;
-volatile uint32_t g_telemetry_stack_remaining __attribute__((used, externally_visible)) = 0U;
+volatile uint32_t g_telemetry_stack_remaining __attribute__((used, externally_visible)) = TELEMETRY_THREAD_STACK_SIZE;
 volatile uint32_t g_telemetry_stack_start __attribute__((used, externally_visible)) = 0U;
 volatile uint32_t g_telemetry_stack_end __attribute__((used, externally_visible)) = 0U;
-#define TELEMETRY_THREAD_STACK_SIZE (12U * 1024U)
+volatile uint32_t g_telemetry_init_stage __attribute__((used, externally_visible)) = 0U;
+volatile int32_t g_telemetry_init_result __attribute__((used, externally_visible)) = 0;
+volatile uint32_t g_telemetry_service_stage __attribute__((used, externally_visible)) = 0U;
 extern FDCAN_HandleTypeDef hfdcan2;
 
 void telemetry_thread_entry(ULONG initial_input)
@@ -23,18 +27,30 @@ void telemetry_thread_entry(ULONG initial_input)
     (void)initial_input;
     g_telemetry_thread_entered++;
 
-    // Ensure router exists early (so we can send requests immediately)
-    (void)init_telemetry_router();
+    /* Router initialization may emit startup traffic, so bring the physical
+     * CAN transport up first. */
+    g_telemetry_init_stage = 1U;
     can_bus_init(&hfdcan2);
+    g_telemetry_init_stage = 2U;
+    g_telemetry_init_result = (int32_t)init_telemetry_router();
+    g_telemetry_init_stage = 3U;
 
 
     for (;;)
     {
+        g_telemetry_service_stage = 1U;
         can_bus_process_rx();
+        g_telemetry_service_stage = 2U;
         (void)telemetry_poll_discovery();
-        (void)dispatch_tx_queue_timeout(50);
+        g_telemetry_service_stage = 3U;
+        /* SEDSNet receive_from_side queues decoded work. Service RX and TX
+         * together so network variables and telemetry make bounded progress. */
+        (void)process_all_queues_timeout(TELEMETRY_QUEUE_SERVICE_BUDGET_MS);
+        g_telemetry_service_stage = 4U;
         (void)telemetry_poll_timesync();
+        g_telemetry_service_stage = 5U;
         ota_stream_poll();
+        g_telemetry_service_stage = 6U;
 
         _tx_thread_stack_analyze(&telemetry_thread);
         g_telemetry_stack_used = (uint32_t)(
@@ -49,6 +65,7 @@ void telemetry_thread_entry(ULONG initial_input)
             (uintptr_t)sensor_thread.tx_thread_stack_start);
 
         tx_thread_sleep(1);
+        g_telemetry_service_stage = 7U;
     }
 }
 

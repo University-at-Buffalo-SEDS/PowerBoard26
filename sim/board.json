@@ -42,9 +42,13 @@
     "require_stack_probe": true,
     "memory_probes": [
       {"name": "network_ready", "symbol": "g_telemetry_network_ready"},
+      {"name": "telemetry_init_stage", "symbol": "g_telemetry_init_stage"},
+      {"name": "telemetry_init_result", "symbol": "g_telemetry_init_result"},
+      {"name": "telemetry_service_stage", "symbol": "g_telemetry_service_stage"},
       {"name": "telemetry_thread_entered", "symbol": "g_telemetry_thread_entered", "minimum": 1},
       {"name": "telemetry_stack_used", "symbol": "g_telemetry_stack_used", "maximum": 14336},
       {"name": "telemetry_stack_remaining", "symbol": "g_telemetry_stack_remaining", "minimum": 2048},
+      {"name": "sensor_thread_entered", "symbol": "g_sensor_thread_entered", "minimum": 1},
       {"name": "sensor_stack_remaining", "symbol": "g_sensor_stack_remaining", "minimum": 1024},
       {"name": "telemetry_stack_start", "symbol": "g_telemetry_stack_start"},
       {"name": "telemetry_stack_end", "symbol": "g_telemetry_stack_end"},
@@ -82,7 +86,24 @@
       {"name": "fdcan_irqs", "symbol": "g_fdcan_irq_count"},
       {"name": "fdcan_rx", "symbol": "g_fdcan_rx_count"},
       {"name": "fdcan_tx_ok", "symbol": "g_fdcan_tx_ok_count"},
-      {"name": "fdcan_tx_fail", "symbol": "g_fdcan_tx_fail_count"}
+      {"name": "fdcan_tx_fail", "symbol": "g_fdcan_tx_fail_count"},
+      {"name": "hardfault_count", "symbol": "g_hardfault_count", "maximum": 0},
+      {"name": "hardfault_cfsr", "symbol": "g_hardfault_cfsr", "maximum": 0},
+      {"name": "hardfault_hfsr", "symbol": "g_hardfault_hfsr", "maximum": 0},
+      {"name": "hardfault_mmfar", "symbol": "g_hardfault_mmfar"},
+      {"name": "hardfault_bfar", "symbol": "g_hardfault_bfar"}
+      ,{"name": "hardfault_stacked_lr", "symbol": "g_hardfault_stacked_lr"}
+      ,{"name": "hardfault_stacked_pc", "symbol": "g_hardfault_stacked_pc"}
+      ,{"name": "hardfault_stacked_xpsr", "symbol": "g_hardfault_stacked_xpsr"}
+      ,{"name": "hardfault_psp", "symbol": "g_hardfault_psp"}
+      ,{"name": "hardfault_exc_return", "symbol": "g_hardfault_exc_return"}
+      ,{"name": "telemetry_stack_start_at_fault", "symbol": "g_telemetry_stack_start"}
+      ,{"name": "telemetry_stack_end_at_fault", "symbol": "g_telemetry_stack_end"}
+      ,{"name": "flight_state_cache", "symbol": "g_flight_state_cache_value", "maximum": 15}
+      ,{"name": "flight_state_restores", "symbol": "g_flight_state_cache_restores"}
+      ,{"name": "flight_state_writes", "symbol": "g_flight_state_cache_writes"}
+      ,{"name": "flight_state_updates", "symbol": "g_flight_state_cache_updates"}
+      ,{"name": "flight_state_errors", "symbol": "g_flight_state_cache_errors", "maximum": 0}
     ]
   },
   "traffic": {

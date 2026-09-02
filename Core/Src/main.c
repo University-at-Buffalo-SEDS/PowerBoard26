@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "can_bus.h"
+#include "av_bay_underglow.h"
+#include "flight_state_cache.h"
 #include "ux_api.h"
 #include "ux_device_class_cdc_acm.h"
 #include <stdint.h>
@@ -116,6 +118,10 @@ int main(void)
   MX_USB_PCD_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  /* Restore the LaunchCore-managed LED state before ThreadX or SEDSNet start;
+   * network-variable synchronization must not gate visible startup state. */
+  av_bay_underglow_restore();
+  flight_state_cache_restore();
   /* USER CODE END 2 */
 
   MX_ThreadX_Init();

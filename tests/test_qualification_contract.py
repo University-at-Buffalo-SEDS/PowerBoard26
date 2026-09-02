@@ -6,6 +6,41 @@ import build
 
 
 class QualificationContractTests(unittest.TestCase):
+    def test_telemetry_stack_covers_profiled_sedsnet_call_depth(self):
+        root = Path(build.__file__).resolve().parent
+        source = (root / "Core" / "Src" / "telemetry_thread.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (16U * 1024U)", source)
+
+    def test_can_transport_starts_before_router(self):
+        root = Path(build.__file__).resolve().parent
+        source = (root / "Core" / "Src" / "telemetry_thread.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertLess(
+            source.index("can_bus_init(&hfdcan2);"),
+            source.index("init_telemetry_router();"),
+        )
+
+    def test_sensor_thread_cannot_be_starved_by_telemetry(self):
+        root = Path(build.__file__).resolve().parent
+        source = (root / "Core" / "Src" / "sensor_thread.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertRegex(
+            source,
+            r"SENSOR_THREAD_STACK_SIZE,\s*// must match allocation size\s*2,\s*// priority\s*2,",
+        )
+
+    def test_telemetry_loop_services_received_and_transmit_work_together(self):
+        root = Path(build.__file__).resolve().parent
+        thread = (root / "Core" / "Src" / "telemetry_thread.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("process_all_queues_timeout(TELEMETRY_QUEUE_SERVICE_BUDGET_MS)", thread)
+        self.assertNotIn("dispatch_tx_queue_timeout(50)", thread)
+
     def test_full_runner_profiles_memory_and_linked_network(self):
         root = Path(build.__file__).resolve().parent
         runner = (root / "sim" / "run_full.py").read_text(encoding="utf-8")
