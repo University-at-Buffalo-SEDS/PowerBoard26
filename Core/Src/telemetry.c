@@ -423,6 +423,18 @@ SedsResult init_telemetry_router(void) {
     g_can_side_id = -1;
   }
 
+  /* DiscoveryAddress carries the routing summary.  The detailed graph is
+   * diagnostic-only and can grow beyond this board's bounded SEDSNet pool. */
+  if (g_can_side_id >= 0 &&
+      seds_router_set_typed_route(r, -1, SEDS_DT_DISCOVERY_TOPOLOGY,
+                                  g_can_side_id, false) != SEDS_OK) {
+    seds_router_free(r);
+    g_router.r = NULL;
+    g_router.created = 0U;
+    g_can_side_id = -1;
+    return SEDS_ERR;
+  }
+
   result = telemetry_configure_timesync_locked(r);
   if (result != SEDS_OK) {
     printf("Error: failed to configure telemetry timesync: %d\r\n", (int)result);
