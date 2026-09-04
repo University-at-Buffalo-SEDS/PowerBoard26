@@ -36,11 +36,27 @@ static void busy_delay(volatile uint32_t n)
 volatile uint32_t g_thread_stack_error_count = 0U;
 volatile uint32_t g_telemetry_thread_stack_error_count = 0U;
 volatile uint32_t g_sensor_thread_stack_error_count = 0U;
+volatile uint32_t g_stack_error_thread_ptr = 0U;
+volatile uint32_t g_stack_error_stack_ptr = 0U;
+volatile uint32_t g_stack_error_stack_start = 0U;
+volatile uint32_t g_stack_error_stack_end = 0U;
+volatile uint32_t g_stack_error_stack_highest = 0U;
+volatile uint32_t g_stack_error_start_guard = 0U;
+volatile uint32_t g_stack_error_end_guard = 0U;
 
 static void thread_stack_error_handler(TX_THREAD *thread_ptr)
 {
-  (void)thread_ptr;
   g_thread_stack_error_count++;
+  if (thread_ptr != TX_NULL) {
+    g_stack_error_thread_ptr = (uint32_t)(uintptr_t)thread_ptr;
+    g_stack_error_stack_ptr = (uint32_t)(uintptr_t)thread_ptr->tx_thread_stack_ptr;
+    g_stack_error_stack_start = (uint32_t)(uintptr_t)thread_ptr->tx_thread_stack_start;
+    g_stack_error_stack_end = (uint32_t)(uintptr_t)thread_ptr->tx_thread_stack_end;
+    g_stack_error_stack_highest = (uint32_t)(uintptr_t)thread_ptr->tx_thread_stack_highest_ptr;
+    g_stack_error_start_guard = *((volatile uint32_t *)thread_ptr->tx_thread_stack_start);
+    g_stack_error_end_guard = *((volatile uint32_t *)
+        ((uint8_t *)thread_ptr->tx_thread_stack_end + 1U));
+  }
   if (thread_ptr == &telemetry_thread) {
     g_telemetry_thread_stack_error_count++;
   } else if (thread_ptr == &sensor_thread) {

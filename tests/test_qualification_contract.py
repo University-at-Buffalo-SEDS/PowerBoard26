@@ -11,7 +11,7 @@ class QualificationContractTests(unittest.TestCase):
         source = (root / "Core" / "Src" / "telemetry_thread.c").read_text(
             encoding="utf-8"
         )
-        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (16U * 1024U)", source)
+        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (11U * 1024U)", source)
 
     def test_can_transport_starts_before_router(self):
         root = Path(build.__file__).resolve().parent
