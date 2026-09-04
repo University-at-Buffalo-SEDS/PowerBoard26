@@ -53,16 +53,31 @@ void telemetry_thread_entry(ULONG initial_input)
         g_telemetry_service_stage = 6U;
 
         _tx_thread_stack_analyze(&telemetry_thread);
-        g_telemetry_stack_used = (uint32_t)(
-            (uintptr_t)telemetry_thread.tx_thread_stack_end -
-            (uintptr_t)telemetry_thread.tx_thread_stack_highest_ptr + sizeof(ULONG));
-        g_telemetry_stack_remaining = (uint32_t)(
-            (uintptr_t)telemetry_thread.tx_thread_stack_highest_ptr -
-            (uintptr_t)telemetry_thread.tx_thread_stack_start);
+        const uintptr_t telemetry_start =
+            (uintptr_t)telemetry_thread.tx_thread_stack_start;
+        const uintptr_t telemetry_end =
+            (uintptr_t)telemetry_thread.tx_thread_stack_end;
+        const uintptr_t telemetry_highest =
+            (uintptr_t)telemetry_thread.tx_thread_stack_highest_ptr;
+        if ((telemetry_highest >= telemetry_start) &&
+            (telemetry_highest <= telemetry_end)) {
+            g_telemetry_stack_used = (uint32_t)(
+                telemetry_end - telemetry_highest + sizeof(ULONG));
+            g_telemetry_stack_remaining = (uint32_t)(
+                telemetry_highest - telemetry_start);
+        }
         _tx_thread_stack_analyze(&sensor_thread);
-        g_sensor_stack_remaining = (uint32_t)(
-            (uintptr_t)sensor_thread.tx_thread_stack_highest_ptr -
-            (uintptr_t)sensor_thread.tx_thread_stack_start);
+        const uintptr_t sensor_start =
+            (uintptr_t)sensor_thread.tx_thread_stack_start;
+        const uintptr_t sensor_end =
+            (uintptr_t)sensor_thread.tx_thread_stack_end;
+        const uintptr_t sensor_highest =
+            (uintptr_t)sensor_thread.tx_thread_stack_highest_ptr;
+        if ((sensor_highest >= sensor_start) &&
+            (sensor_highest <= sensor_end)) {
+            g_sensor_stack_remaining = (uint32_t)(
+                sensor_highest - sensor_start);
+        }
 
         tx_thread_sleep(1);
         g_telemetry_service_stage = 7U;

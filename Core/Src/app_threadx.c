@@ -44,6 +44,7 @@ volatile uint32_t g_stack_error_stack_highest = 0U;
 volatile uint32_t g_stack_error_start_guard = 0U;
 volatile uint32_t g_stack_error_end_guard = 0U;
 
+#ifndef SEDS_FIRMWARE_SIM_TEST
 static void thread_stack_error_handler(TX_THREAD *thread_ptr)
 {
   g_thread_stack_error_count++;
@@ -64,6 +65,7 @@ static void thread_stack_error_handler(TX_THREAD *thread_ptr)
   }
   Error_Handler();
 }
+#endif
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,7 +93,22 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   telemetry_set_byte_pool(byte_pool);
   /* Initialize telemetry lock used by Rust (telemetry_lock/telemetry_unlock). */
   telemetry_init_lock();
+#ifndef SEDS_FIRMWARE_SIM_TEST
   (void)tx_thread_stack_error_notify(thread_stack_error_handler);
+#else
+  /* Keep the diagnostic counters in the simulated ELF even though Renode's
+   * ThreadX model cannot safely invoke the runtime stack-error callback. */
+  g_thread_stack_error_count = 0U;
+  g_telemetry_thread_stack_error_count = 0U;
+  g_sensor_thread_stack_error_count = 0U;
+  g_stack_error_thread_ptr = 0U;
+  g_stack_error_stack_ptr = 0U;
+  g_stack_error_stack_start = 0U;
+  g_stack_error_stack_end = 0U;
+  g_stack_error_stack_highest = 0U;
+  g_stack_error_start_guard = 0U;
+  g_stack_error_end_guard = 0U;
+#endif
   
   static LTC2990_Handle_t ltc2990_voltage_handle;
   static LTC2990_Handle_t ltc2990_current_handle;

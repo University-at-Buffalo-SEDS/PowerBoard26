@@ -141,7 +141,9 @@
    define is negated, thereby forcing the stack fill which is necessary for the stack checking
    logic.  */
 
+#ifndef SEDS_FIRMWARE_SIM_TEST
 #define TX_ENABLE_STACK_CHECKING
+#endif
 
 /* Determine if preemption-threshold should be disabled. By default, preemption-threshold is
    enabled. If the application does not use preemption-threshold, it may be disabled to reduce
