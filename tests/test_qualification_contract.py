@@ -6,6 +6,17 @@ import build
 
 
 class QualificationContractTests(unittest.TestCase):
+    def test_router_clock_epoch_precedes_router_and_side_setup(self):
+        root = Path(build.__file__).resolve().parent
+        telemetry = (root / "Core" / "Src" / "telemetry.c").read_text(encoding="utf-8")
+        create = telemetry.index("seds_router_new(")
+        epoch = telemetry.index("g_router.start_time = init_now_ms;")
+        side = telemetry.index('r, "can", 3U, tx_send')
+
+        self.assertLess(epoch, create)
+        self.assertLess(epoch, side)
+        self.assertEqual(telemetry.count("g_router.start_time ="), 1)
+
     def test_telemetry_stack_covers_profiled_sedsnet_call_depth(self):
         root = Path(build.__file__).resolve().parent
         source = (root / "Core" / "Src" / "telemetry_thread.c").read_text(
