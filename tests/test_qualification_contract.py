@@ -52,6 +52,15 @@ class QualificationContractTests(unittest.TestCase):
         self.assertIn("process_all_queues_timeout(TELEMETRY_QUEUE_SERVICE_BUDGET_MS)", thread)
         self.assertNotIn("dispatch_tx_queue_timeout(50)", thread)
 
+    def test_can_receive_work_is_bounded_so_router_cannot_starve(self):
+        root = Path(build.__file__).resolve().parent
+        source = (root / "Core" / "Src" / "can_bus.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("#define CAN_BUS_RX_SERVICE_BUDGET 32U", source)
+        self.assertIn("drained < CAN_BUS_RX_SERVICE_BUDGET", source)
+        self.assertIn("processed < CAN_BUS_RX_SERVICE_BUDGET", source)
+
     def test_full_runner_profiles_memory_and_linked_network(self):
         root = Path(build.__file__).resolve().parent
         runner = (root / "sim" / "run_full.py").read_text(encoding="utf-8")

@@ -49,6 +49,10 @@
 #define CAN_BUS_TX_ENQUEUE_TIMEOUT_MS 50U
 #endif
 
+#ifndef CAN_BUS_RX_SERVICE_BUDGET
+#define CAN_BUS_RX_SERVICE_BUDGET 32U
+#endif
+
 #define UNUSED_FUNCTION __attribute__((unused))
 
 /* Forward declarations (avoid implicit decl / linkage mismatch) */
@@ -719,13 +723,16 @@ static void can_bus_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo)
 {
   FDCAN_RxHeaderTypeDef hdr;
   uint8_t data[64];
+  uint32_t drained = 0U;
 
-  while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, fifo) > 0)
+  while (drained < CAN_BUS_RX_SERVICE_BUDGET &&
+         HAL_FDCAN_GetRxFifoFillLevel(hfdcan, fifo) > 0)
   {
     if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &hdr, data) != HAL_OK)
       break;
 
     g_fdcan_rx_count++;
+    drained++;
 
     uint32_t std_id = hdr.Identifier & 0x7FFu;
 
@@ -1032,8 +1039,10 @@ void can_bus_process_rx(void)
   }
 
   can_bus_rx_frame_t f;
-  while (rb_pop(&f))
+  uint32_t processed = 0U;
+  while (processed < CAN_BUS_RX_SERVICE_BUDGET && rb_pop(&f))
   {
+    processed++;
     CAN_BUS_DBG("CAN RX RAW: id=0x%03lx len=%u", (unsigned long)f.std_id, (unsigned)f.len);
     can_bus_dbg_dump_bytes(f.data, f.len);
     handle_rx_frame(&f, now);
