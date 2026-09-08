@@ -1,7 +1,7 @@
 # PowerBoard26 firmware
 
 PowerBoard26 targets the STM32G491 and participates in the avionics SEDSNet
-CAN-FD network. It uses SEDSNet v4.0.18 and SEDS LaunchCore v1.0.0, fetched by
+CAN-FD network. It uses SEDSNet v4.0.19 and SEDS LaunchCore v1.0.0, fetched by
 CMake without submodules. Linker scripts, bootloader placement, firmware slot,
 OTA delta storage, and persistent-data storage are derived from
 `Bootloader/board_config.h`.
