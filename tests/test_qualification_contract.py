@@ -109,8 +109,8 @@ class QualificationContractTests(unittest.TestCase):
         root = Path(build.__file__).resolve().parent
         source = (root / "Core" / "Src" / "av_bay_underglow.c").read_text(encoding="utf-8")
         self.assertIn("seds_router_enable_network_variable", source)
-        self.assertIn("seds_router_get_network_variable_packed_len", source)
-        self.assertNotIn("seds_router_request_managed_variable", source)
+        self.assertIn("seds_router_request_managed_variable", source)
+        self.assertNotIn("seds_router_get_network_variable_packed_len", source)
 
 
     def test_periodic_health_check_does_not_serialize_topology(self):
