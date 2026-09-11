@@ -240,6 +240,11 @@ int8_t LTC2990_Write_Register(LTC2990_Handle_t *h, uint8_t reg, uint8_t data)
     return (st == HAL_OK) ? 0 : 1;
 }
 
+volatile uint32_t g_sim_voltage_publish_attempts
+    __attribute__((used, externally_visible)) = 0U;
+volatile uint32_t g_sim_voltage_publish_ok
+    __attribute__((used, externally_visible)) = 0U;
+
 void telemetry_ltc2990_update_voltage(LTC2990_Handle_t *ltc2990_handle) {
     float voltages[4] = {0, 0, 0, 0};
     LTC2990_Step(ltc2990_handle);
@@ -248,7 +253,9 @@ void telemetry_ltc2990_update_voltage(LTC2990_Handle_t *ltc2990_handle) {
 
 
 #ifdef TELEMETRY_ENABLED
+    g_sim_voltage_publish_attempts++;
     SedsResult res = log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, &voltage, 1, sizeof(float));
+    if (res == SEDS_OK) g_sim_voltage_publish_ok++;
     (void)res;
 #endif
 }

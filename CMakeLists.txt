@@ -49,7 +49,8 @@ endif()
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
-    USER_VECT_TAB_ADDRESS VECT_TAB_OFFSET=0x00004200U)
+    USER_VECT_TAB_ADDRESS VECT_TAB_OFFSET=0x00004200U
+    FIRMWARE_USB_DEBUG_ENABLED=$<IF:$<CONFIG:Debug>,1,0>)
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
     -T "${CMAKE_SOURCE_DIR}/STM32G491XX_FLASH.ld")
 

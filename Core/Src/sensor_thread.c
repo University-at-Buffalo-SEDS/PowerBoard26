@@ -8,11 +8,14 @@
 #include "main.h"
 #include <stdio.h>
 #include "can_bus.h"
+#include "telemetry_rate.h"
 
 TX_THREAD sensor_thread;
 
 #define SENSOR_THREAD_STACK_SIZE (7U * 1024U)
-#define SENSOR_LOG_PERIOD_TICKS (5U * TX_TIMER_TICKS_PER_SECOND)
+/* Voltage and current change slowly. Keeping fresh samples at 0.2 Hz leaves
+ * radio/CAN capacity for discovery, commands, managed variables, and ACKs. */
+#define SENSOR_LOG_PERIOD_TICKS pb_telemetry_period_ticks(TX_TIMER_TICKS_PER_SECOND)
 extern I2C_HandleTypeDef hi2c2;
 volatile uint32_t g_sensor_thread_entered __attribute__((used, externally_visible)) = 0U;
 volatile uint32_t g_sensor_stack_remaining = SENSOR_THREAD_STACK_SIZE;

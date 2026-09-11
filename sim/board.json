@@ -60,6 +60,8 @@
       {"name": "heartbeat_fail", "symbol": "g_sim_heartbeat_fail"},
       {"name": "discovery_seen", "symbol": "g_telemetry_discovery_seen"},
       {"name": "timesync_valid", "symbol": "g_telemetry_timesync_valid"},
+      {"name": "voltage_publish_attempts", "symbol": "g_sim_voltage_publish_attempts"},
+      {"name": "voltage_publish_ok", "symbol": "g_sim_voltage_publish_ok"},
       {"name": "underglow_enabled", "symbol": "g_av_bay_underglow_enabled", "maximum": 1},
       {"name": "underglow_updates", "symbol": "g_av_bay_underglow_updates"},
       {"name": "underglow_persist_restores", "symbol": "g_av_bay_underglow_persist_restores"},
@@ -132,8 +134,7 @@
       "model": "ltc2990",
       "bus": "i2c2@0x4c",
       "bits": 15,
-      "channels": 4,
-      "failure_every": 997
+      "channels": 4
     },
     {
       "type": "adc",
@@ -141,8 +142,7 @@
       "model": "ltc2990",
       "bus": "i2c2@0x4d",
       "bits": 15,
-      "channels": 2,
-      "disconnect_after": 950
+      "channels": 2
     }
   ]
 }
