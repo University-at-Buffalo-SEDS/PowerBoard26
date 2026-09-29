@@ -13,6 +13,7 @@ volatile uint32_t g_telemetry_lock_put_fail = 0U;
 volatile uint32_t g_telemetry_lock_get_status = TX_SUCCESS;
 volatile uint32_t g_telemetry_lock_put_status = TX_SUCCESS;
 volatile uint32_t g_telemetry_alloc_fail = 0U;
+volatile UINT g_telemetry_alloc_failure_status = TX_SUCCESS;
 volatile uint32_t g_telemetry_panic_count = 0U;
 volatile uint32_t g_telemetry_alloc_count = 0U;
 volatile uint32_t g_telemetry_free_count = 0U;
@@ -207,12 +208,13 @@ void *telemetryMalloc(size_t xSize)
         g_telemetry_max_alloc_request = (uint32_t)xSize;
     }
 
-    /*
-     * Allow a brief wait so telemetry bursts don't immediately fail allocator
-     * requests and trigger panic paths in Rust.
-     */
-    if (tx_byte_allocate(rust_byte_pool_external, &ptr, xSize, 5) != TX_SUCCESS)
+    /* Never suspend an allocator while a router lock may be held. A wait
+     * option is also invalid in ThreadX system context. Keep the status so
+     * diagnostics can distinguish allocation exhaustion from context errors. */
+    const UINT status = tx_byte_allocate(rust_byte_pool_external, &ptr, xSize, TX_NO_WAIT);
+    if (status != TX_SUCCESS)
     {
+        g_telemetry_alloc_failure_status = status;
         telemetry_memory_profile_sample();
         g_telemetry_alloc_failure_available = g_telemetry_pool_available;
         g_telemetry_alloc_failure_fragments = g_telemetry_pool_fragments;
