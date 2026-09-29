@@ -14,6 +14,9 @@ class AllocatorTests(unittest.TestCase):
 typedef unsigned UINT;
 #define TX_SUCCESS 0
 #define TX_NO_WAIT 0
+#define TX_NO_MEMORY 16
+static unsigned g_telemetry_reserve_recoveries;
+static void *telemetry_reserve_allocate(size_t n) { (void)n; return NULL; }
 static int pool;
 static void *rust_byte_pool_external=&pool;
 static unsigned calls, result, requested;

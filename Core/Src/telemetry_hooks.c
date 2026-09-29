@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "main.h"
+#include "telemetry_reserve.h"
 
 static TX_BYTE_POOL *rust_byte_pool_external = NULL;
 static TX_MUTEX g_telemetry_mutex;
@@ -131,6 +132,7 @@ static void telemetry_memory_profile_sample(void)
 void telemetry_set_byte_pool(TX_BYTE_POOL *pool)
 {
     rust_byte_pool_external = pool;
+    telemetry_reserve_init();
     telemetry_memory_profile_sample();
 }
 
@@ -212,6 +214,17 @@ void *telemetryMalloc(size_t xSize)
      * option is also invalid in ThreadX system context. Keep the status so
      * diagnostics can distinguish allocation exhaustion from context errors. */
     const UINT status = tx_byte_allocate(rust_byte_pool_external, &ptr, xSize, TX_NO_WAIT);
+    if (status == TX_NO_MEMORY)
+    {
+        ptr = telemetry_reserve_allocate(xSize);
+        if (ptr != NULL)
+        {
+            g_telemetry_reserve_recoveries++;
+            g_telemetry_alloc_count++;
+            telemetry_memory_profile_sample();
+            return ptr;
+        }
+    }
     if (status != TX_SUCCESS)
     {
         g_telemetry_alloc_failure_status = status;
@@ -231,7 +244,8 @@ void telemetryFree(void *pv)
 {
     if (pv != NULL)
     {
-        (void)tx_byte_release(pv);
+        if (telemetry_reserve_owns(pv)) (void)tx_block_release(pv);
+        else (void)tx_byte_release(pv);
         g_telemetry_free_count++;
         telemetry_memory_profile_sample();
     }
