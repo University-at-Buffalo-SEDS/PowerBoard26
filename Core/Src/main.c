@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "app_threadx.h"
 #include "main.h"
+#include "board_watchdog.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -124,6 +125,7 @@ int main(void)
   flight_state_cache_restore();
   /* USER CODE END 2 */
 
+  board_watchdog_start();
   MX_ThreadX_Init();
 
   /* We should never get here as control is now taken by the scheduler */

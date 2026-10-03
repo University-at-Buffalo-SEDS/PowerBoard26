@@ -1,3 +1,4 @@
+#include "board_watchdog.h"
 // sensor_thread.c (or telemetry_thread.c)
 #include <stdint.h>
 #include "PB-Threads.h"
@@ -54,12 +55,14 @@ void sensor_thread_entry(ULONG entry_input)
                         LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE) != 0)
     {
         sensor_update_stack_profile();
+        board_watchdog_progress(BOARD_WATCHDOG_ACQUISITION);
         tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
     }
     while (LTC2990_Init(ltc2990_current_handle, &hi2c2,
                         LTC2990_I2C_ADDRESS_CURRENT, CURRENT) != 0)
     {
         sensor_update_stack_profile();
+        board_watchdog_progress(BOARD_WATCHDOG_ACQUISITION);
         tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
     }
     // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
@@ -67,6 +70,7 @@ void sensor_thread_entry(ULONG entry_input)
     for (;;)
     {
         sensor_update_stack_profile();
+        board_watchdog_progress(BOARD_WATCHDOG_ACQUISITION);
         tx_thread_sleep(SENSOR_LOG_PERIOD_TICKS);
         telemetry_ltc2990_update_voltage(ltc2990_voltage_handle);
         telemetry_ltc2990_update_current(ltc2990_current_handle);

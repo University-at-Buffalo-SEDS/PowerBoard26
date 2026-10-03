@@ -1,3 +1,4 @@
+#include "board_watchdog.h"
 // telemetry_thread.c
 #include "PB-Threads.h"
 #include "tx_api.h"
@@ -38,6 +39,7 @@ void telemetry_thread_entry(ULONG initial_input)
 
     for (;;)
     {
+        board_watchdog_progress(BOARD_WATCHDOG_NETWORK);
         g_telemetry_service_stage = 1U;
         can_bus_process_rx();
         g_telemetry_service_stage = 2U;

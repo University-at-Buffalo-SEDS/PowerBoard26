@@ -67,3 +67,9 @@ Telemetry publication rate is a board-local preprocessor setting:
 (one update every five seconds). Fractional rates are supported; rebuild and
 reflash after changing it. It is not a network variable. Actual throughput
 is limited by sensor acquisition, RTOS tick resolution and link capacity.
+
+## Hardware watchdog
+
+[Board watchdog configuration and validation](docs/watchdog.md). Build with
+`./build.py build --release --watchdog`.
+Watchdogs are opt-in and require the matching bootloader.
