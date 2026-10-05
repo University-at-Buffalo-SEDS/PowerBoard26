@@ -49,6 +49,7 @@ endif()
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 include(cmake/packet_store.cmake)
+include(cmake/tlsf_allocator.cmake)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     USER_VECT_TAB_ADDRESS VECT_TAB_OFFSET=0x00004200U
     FIRMWARE_USB_DEBUG_ENABLED=$<IF:$<CONFIG:Debug>,1,0>)
@@ -140,6 +141,6 @@ set(LAUNCHCORE_DELTA_SIZE 0x00006000)
 include(cmake/launchcore_stm32.cmake)
 
 # Board-owned progress watchdog; deliberately independent of SEDSnet.
-option(ENABLE_BOARD_WATCHDOG "Enable independent hardware watchdog with task progress gating" OFF)
+option(ENABLE_BOARD_WATCHDOG "Enable independent hardware watchdog with task progress gating" ON)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/Core/Src/board_watchdog.c)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BOARD_WATCHDOG_ENABLE=$<BOOL:${ENABLE_BOARD_WATCHDOG}>)
