@@ -9,6 +9,7 @@
 #include "can_bus.h"
 #include "main.h"
 #include "sedsnet_config.h"
+#include "board_packet_store.h"
 #include "stm32g4xx_hal.h"
 #include "stm32g4xx_hal_gpio.h"
 
@@ -439,6 +440,9 @@ SedsResult init_telemetry_router(void) {
       printf("Error: can_bus_subscribe_rx failed\r\n");
     }
   }
+
+  result = board_packet_store_init();
+  if (result != SEDS_OK) return result;
 
   r = seds_router_new(node_now_since_ms, NULL, locals,
                       sizeof(locals) / sizeof(locals[0]));
