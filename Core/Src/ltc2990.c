@@ -247,31 +247,59 @@ volatile uint32_t g_sim_voltage_publish_attempts
 volatile uint32_t g_sim_voltage_publish_ok
     __attribute__((used, externally_visible)) = 0U;
 
+/* Sensor acquisition runs on a smaller stack than the router worker. Never
+ * pack/dispatch network packets there: nested arena/codec/TLSF calls can exceed
+ * that stack before ThreadX samples its high-water pointer. One latest-value
+ * slot per measurement is sufficient for these slowly changing readings. */
+static float pending_voltage, pending_current;
+static uint32_t pending_reports;
+
+static void stage_sensor_report(uint32_t bit, float value)
+{
+    const uint32_t saved = __get_PRIMASK();
+    __disable_irq();
+    if (bit == 1U) pending_voltage = value;
+    else pending_current = value;
+    pending_reports |= bit;
+    __set_PRIMASK(saved);
+}
+
 void telemetry_ltc2990_update_voltage(LTC2990_Handle_t *ltc2990_handle) {
-    float voltages[4] = {0, 0, 0, 0};
+    float voltages[4];
     LTC2990_Step(ltc2990_handle);
     LTC2990_Get_Voltage(ltc2990_handle, voltages);
-    float voltage = voltages[0] * 2.8;
-
-
 #ifdef TELEMETRY_ENABLED
-    g_sim_voltage_publish_attempts++;
-    SedsResult res = log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, &voltage, 1, sizeof(float));
-    if (res == SEDS_OK) g_sim_voltage_publish_ok++;
-    (void)res;
+    stage_sensor_report(1U, voltages[0] * 2.8f);
 #endif
 }
 
-
 void telemetry_ltc2990_update_current(LTC2990_Handle_t *ltc2990_handle) {
-    float current[4] = {0, 0, 0, 0};
+    float current[4];
     LTC2990_Step(ltc2990_handle);
     LTC2990_Get_Voltage(ltc2990_handle, current);
-    float current_value = current[0];
-
-
 #ifdef TELEMETRY_ENABLED
-    SedsResult res = log_telemetry_asynchronous(SEDS_DT_BATTERY_CURRENT, &current_value, 1, sizeof(float));
-    (void)res;
+    stage_sensor_report(2U, current[0]);
+#endif
+}
+
+/* Called only by the telemetry worker. The short critical section protects the
+ * snapshot; no allocator, bus operation or router call runs with IRQs masked.
+ * New acquisition replaces an unsent value rather than building a backlog. */
+void telemetry_ltc2990_publish_pending(void)
+{
+#ifdef TELEMETRY_ENABLED
+    const uint32_t saved = __get_PRIMASK();
+    __disable_irq();
+    const uint32_t reports = pending_reports;
+    const float voltage = pending_voltage, current = pending_current;
+    pending_reports = 0U;
+    __set_PRIMASK(saved);
+    if (reports & 1U) {
+        g_sim_voltage_publish_attempts++;
+        if (log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, &voltage, 1, sizeof(float)) == SEDS_OK)
+            g_sim_voltage_publish_ok++;
+    }
+    if (reports & 2U)
+        (void)log_telemetry_asynchronous(SEDS_DT_BATTERY_CURRENT, &current, 1, sizeof(float));
 #endif
 }

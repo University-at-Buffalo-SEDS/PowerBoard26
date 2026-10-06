@@ -7,6 +7,7 @@
 #include "ota_stream.h"
 #include "can_bus.h"
 #include "main.h"
+#include "ltc2990.h"
 
 TX_THREAD telemetry_thread;
 extern TX_THREAD sensor_thread;
@@ -49,6 +50,7 @@ void telemetry_thread_entry(ULONG initial_input)
          * together so network variables and telemetry make bounded progress. */
         (void)process_all_queues_timeout(TELEMETRY_QUEUE_SERVICE_BUDGET_MS);
         g_telemetry_service_stage = 4U;
+        telemetry_ltc2990_publish_pending();
         (void)telemetry_poll_timesync();
         g_telemetry_service_stage = 5U;
         ota_stream_poll();
