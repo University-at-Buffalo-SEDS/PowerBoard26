@@ -29,16 +29,17 @@ int log_telemetry_asynchronous(unsigned type,const void*value,size_t count,size_
  assert(!sensor&&!mask&&count==1&&width==sizeof(float));calls++;published[type]=*(const float*)value;return fail;
 }
 '''
+        stub += next(line for line in (ROOT / "Core/Inc/ltc2990.h").read_text().splitlines() if line.startswith("#define CURRENT_DRAW_POLARITY")) + "\n"
         main=r'''
 int main(void){
  LTC2990_Handle_t voltage={5},current={2};sensor=1;
  telemetry_ltc2990_update_voltage(&voltage);telemetry_ltc2990_update_current(&current);assert(!calls&&!mask);
  voltage.value=6;telemetry_ltc2990_update_voltage(&voltage);assert(!calls);
- sensor=0;telemetry_ltc2990_publish_pending();assert(calls==2);assert(fabsf(published[1]-16.8f)<0.001f&&published[2]==2);
+ sensor=0;telemetry_ltc2990_publish_pending();assert(calls==2);assert(fabsf(published[1]-16.8f)<0.001f&&published[2]==-2);
  assert(g_sim_voltage_publish_attempts==1&&g_sim_voltage_publish_ok==1);
  telemetry_ltc2990_publish_pending();assert(calls==2);
  sensor=1;current.value=3;telemetry_ltc2990_update_current(&current);sensor=0;
- telemetry_ltc2990_publish_pending();assert(calls==3&&published[2]==3);
+ telemetry_ltc2990_publish_pending();assert(calls==3&&published[2]==-3);
  sensor=1;telemetry_ltc2990_update_voltage(&voltage);sensor=0;fail=1;
  telemetry_ltc2990_publish_pending();assert(calls==4&&g_sim_voltage_publish_attempts==2&&g_sim_voltage_publish_ok==1);
  telemetry_ltc2990_publish_pending();assert(calls==4); // no busy retry loop on a disconnected bus

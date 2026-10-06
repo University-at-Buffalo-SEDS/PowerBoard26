@@ -207,16 +207,13 @@ float LTC2990_Code_To_Single_Ended_Voltage(LTC2990_Handle_t *handle, uint16_t co
 
 float LTC2990_Code15_To_CurrentA(uint16_t raw15)
 {
-    const float a_per_count = 19.42e-6f / RSENSE_OHM;
-    int16_t signed_code;
-    
-    if (raw15 & 0x4000) { //negative value
-        signed_code = (int16_t)(raw15 | 0xC000); 
-    } else {//positive value
-        signed_code = (int16_t)(raw15);
+    const float a_per_count = 19.42e-6f / (RSENSE_OHM * CURRENT_DIVIDER_RATIO);
+    /* D14 is the sign of a 15-bit two's-complement result; D15 is valid. */
+    int32_t code = (int32_t)(raw15 & 0x7FFFU);
+    if (code >= 0x4000) {
+        code -= 0x8000;
     }
-
-    return (float)signed_code * a_per_count;
+    return (float)code * a_per_count;
 }
 
 
@@ -278,7 +275,7 @@ void telemetry_ltc2990_update_current(LTC2990_Handle_t *ltc2990_handle) {
     LTC2990_Step(ltc2990_handle);
     LTC2990_Get_Voltage(ltc2990_handle, current);
 #ifdef TELEMETRY_ENABLED
-    stage_sensor_report(2U, current[0]);
+    stage_sensor_report(2U, current[0] * CURRENT_DRAW_POLARITY);
 #endif
 }
 
