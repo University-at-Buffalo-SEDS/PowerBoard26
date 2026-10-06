@@ -35,7 +35,9 @@
 #define SINGLE_ENDED_LSB    (5.0f / 16384.0f)  // 5V  2^14
 #define RSENSE_OHM          (0.005f)
 
-#define TIMEOUT             1000
+/* Bound bus stalls separately from the conversion-ready deadline. */
+#define LTC2990_I2C_TIMEOUT_MS 50U
+#define LTC2990_DATA_READY_TIMEOUT_MS 250U
 
 
 #define LTC2990_I2C_ADDRESS_VOLTAGE (0x4C)

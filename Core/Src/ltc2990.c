@@ -42,11 +42,12 @@ static inline void i2c_unlock(LTC2990_Handle_t *h)
 
 static inline uint8_t status_bit_from_msb(uint8_t msb_reg)
 {
+    /* LTC2990 Table 4: bits 0/1 are BUSY/TINT; V1..V4 use bits 2..5. */
     switch (msb_reg) {
-        case V1_MSB_REG: return 0;
-        case V2_MSB_REG: return 1;
-        case V3_MSB_REG: return 2;
-        case V4_MSB_REG: return 3;
+        case V1_MSB_REG: return 2;
+        case V2_MSB_REG: return 3;
+        case V3_MSB_REG: return 4;
+        case V4_MSB_REG: return 5;
         default:         return 0xFF;
     }
 }
@@ -170,19 +171,20 @@ int8_t LTC2990_Trigger_Conversion(LTC2990_Handle_t *h)
 
 uint8_t LTC2990_ADC_Read_New_Data(LTC2990_Handle_t *h, uint8_t msb_reg, uint16_t *raw15, int8_t *data_valid)
 {
-    uint16_t timeout = TIMEOUT;
+    const uint32_t started = HAL_GetTick();
     uint8_t status;
     uint8_t bit = status_bit_from_msb(msb_reg);
 
     if (bit == 0xFF) return 1;
 
-    while (--timeout) {
+    for (;;) {
         if (LTC2990_Read_Register(h, STATUS_REG, &status) != 0) return 1;
         if ((status >> bit) & 0x01) break;
+        /* Unsigned subtraction also handles the HAL millisecond counter wrapping.
+         * A retry count would multiply this deadline by each I2C timeout. */
+        if ((uint32_t)(HAL_GetTick() - started) >= LTC2990_DATA_READY_TIMEOUT_MS) return 1;
         sleep_ms(1);
     }
-
-    if (!timeout) return 1;
 
     uint8_t msb, lsb;
     if (LTC2990_Read_Register(h, msb_reg, &msb) != 0) return 1;
@@ -223,7 +225,7 @@ int8_t LTC2990_Read_Register(LTC2990_Handle_t *h, uint8_t reg, uint8_t *data)
     i2c_lock(h);
 
     HAL_StatusTypeDef st =
-        HAL_I2C_Mem_Read(h->hi2c, h->i2c_address << 1, reg, I2C_MEMADD_SIZE_8BIT, data, 1, TIMEOUT);
+        HAL_I2C_Mem_Read(h->hi2c, h->i2c_address << 1, reg, I2C_MEMADD_SIZE_8BIT, data, 1, LTC2990_I2C_TIMEOUT_MS);
 
     i2c_unlock(h);
     return (st == HAL_OK) ? 0 : 1;
@@ -234,7 +236,7 @@ int8_t LTC2990_Write_Register(LTC2990_Handle_t *h, uint8_t reg, uint8_t data)
     i2c_lock(h);
 
     HAL_StatusTypeDef st =
-        HAL_I2C_Mem_Write(h->hi2c, h->i2c_address << 1, reg, I2C_MEMADD_SIZE_8BIT, &data, 1, TIMEOUT);
+        HAL_I2C_Mem_Write(h->hi2c, h->i2c_address << 1, reg, I2C_MEMADD_SIZE_8BIT, &data, 1, LTC2990_I2C_TIMEOUT_MS);
 
     i2c_unlock(h);
     return (st == HAL_OK) ? 0 : 1;
