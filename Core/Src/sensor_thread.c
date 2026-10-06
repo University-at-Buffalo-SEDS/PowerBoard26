@@ -13,7 +13,7 @@
 
 TX_THREAD sensor_thread;
 
-#define SENSOR_THREAD_STACK_SIZE (7U * 1024U)
+#define SENSOR_THREAD_STACK_SIZE (3U * 1024U)
 /* Voltage and current change slowly. Keeping fresh samples at 0.2 Hz leaves
  * radio/CAN capacity for discovery, commands, managed variables, and ACKs. */
 #define SENSOR_LOG_PERIOD_TICKS pb_telemetry_period_ticks(TX_TIMER_TICKS_PER_SECOND)

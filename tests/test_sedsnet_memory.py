@@ -50,11 +50,11 @@ class SedsnetMemoryTests(unittest.TestCase):
         )
         threadx = (ROOT / "Core" / "Inc" / "tx_user.h").read_text(encoding="utf-8")
         app = (ROOT / "Core" / "Src" / "app_threadx.c").read_text(encoding="utf-8")
-        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (11U * 1024U)", telemetry_thread)
+        self.assertIn("TELEMETRY_THREAD_STACK_SIZE (15U * 1024U)", telemetry_thread)
         sensor_thread = (ROOT / "Core" / "Src" / "sensor_thread.c").read_text(
             encoding="utf-8"
         )
-        self.assertIn("SENSOR_THREAD_STACK_SIZE (7U * 1024U)", sensor_thread)
+        self.assertIn("SENSOR_THREAD_STACK_SIZE (3U * 1024U)", sensor_thread)
         self.assertIn("g_sensor_thread_entered++", sensor_thread)
         self.assertIn("sensor_update_stack_profile();", sensor_thread)
         self.assertRegex(threadx, r"(?m)^#define TX_ENABLE_STACK_CHECKING$")

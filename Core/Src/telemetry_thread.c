@@ -12,7 +12,9 @@
 TX_THREAD telemetry_thread;
 extern TX_THREAD sensor_thread;
 extern volatile uint32_t g_sensor_stack_remaining;
-#define TELEMETRY_THREAD_STACK_SIZE (11U * 1024U)
+/* Incoming schema decoding runs here; sensor publication no longer needs
+ * the former 7 KiB acquisition stack. Total thread stack RAM stays 18 KiB. */
+#define TELEMETRY_THREAD_STACK_SIZE (15U * 1024U)
 #define TELEMETRY_QUEUE_SERVICE_BUDGET_MS 1U
 volatile uint32_t g_telemetry_thread_entered __attribute__((used, externally_visible)) = 0U;
 volatile uint32_t g_telemetry_stack_used __attribute__((used, externally_visible)) = 0U;
