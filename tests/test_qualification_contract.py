@@ -11,7 +11,7 @@ class QualificationContractTests(unittest.TestCase):
         telemetry = (root / "Core" / "Src" / "telemetry.c").read_text(encoding="utf-8")
         create = telemetry.index("seds_router_new(")
         epoch = telemetry.index("g_router.start_time = init_now_ms;")
-        side = telemetry.index('r, "can", 3U, tx_send')
+        side = telemetry.index('r, "can", 3U, tx_send_with_priority')
 
         self.assertLess(epoch, create)
         self.assertLess(epoch, side)
@@ -125,7 +125,7 @@ class QualificationContractTests(unittest.TestCase):
     def test_shared_can_avoids_hop_retry_storms(self):
         root = Path(build.__file__).resolve().parent
         telemetry = (root / "Core" / "Src" / "telemetry.c").read_text(encoding="utf-8")
-        self.assertIn("seds_router_add_side_packed_profile(", telemetry)
+        self.assertIn("seds_router_add_side_packed_profile_with_priority(", telemetry)
         self.assertIn("SEDS_SIDE_TRANSPORT_PROFILE_IPV6_LIKE", telemetry)
         can_bus = (root / "Core" / "Src" / "can_bus.c").read_text(encoding="utf-8")
         self.assertIn("CAN_BUS_TX_ENQUEUE_TIMEOUT_MS 5U", can_bus)
