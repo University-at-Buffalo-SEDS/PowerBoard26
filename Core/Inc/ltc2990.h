@@ -36,7 +36,8 @@
 #define RSENSE_OHM          (0.005f)
 /* R14/R15 = 71.5k, R17/R18 = 10k attenuate the shunt voltage. */
 #define CURRENT_DIVIDER_RATIO (10000.0f / 81500.0f)
-#define CURRENT_DRAW_POLARITY (-1.0f)
+/* V1 senses the upstream side: positive V1-V2 is positive battery draw. */
+#define CURRENT_DRAW_POLARITY (1.0f)
 
 /* Bound bus stalls separately from the conversion-ready deadline. */
 #define LTC2990_I2C_TIMEOUT_MS 50U
