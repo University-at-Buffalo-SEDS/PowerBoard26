@@ -67,7 +67,9 @@ class QualificationContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("#define CAN_BUS_RX_SERVICE_BUDGET 32U", source)
-        self.assertIn("drained < CAN_BUS_RX_SERVICE_BUDGET", source)
+        self.assertIn("drained < budget", source)
+        self.assertIn("FDCAN_RX_FIFO0, CAN_BUS_RX_SERVICE_BUDGET", source)
+        self.assertIn("FDCAN_RX_FIFO1, CAN_BUS_RX_SERVICE_BUDGET", source)
         self.assertIn("processed < CAN_BUS_RX_SERVICE_BUDGET", source)
 
     def test_full_runner_profiles_memory_and_linked_network(self):

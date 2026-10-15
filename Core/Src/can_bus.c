@@ -56,7 +56,7 @@
 #define UNUSED_FUNCTION __attribute__((unused))
 
 /* Forward declarations (avoid implicit decl / linkage mismatch) */
-static void can_bus_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo);
+static void can_bus_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo, uint32_t budget);
 static UNUSED_FUNCTION void can_bus_drain_tx_events(FDCAN_HandleTypeDef *hfdcan);
 
 static void can_bus_debug_print(const char *fmt, ...)
@@ -300,7 +300,7 @@ static inline void can_bus_notify_rx(const uint8_t *data, size_t len)
 
 #define CAN_BUS_FRAG_MAGIC ((uint16_t)('S') | ((uint16_t)('D') << 8)) /* 'S''D' in little-endian byte order */
 #define CAN_BUS_NODE_ID 2U
-#define CAN_BUS_FRAG_WIRE_LEN 64                                      // always send 64B payload frames for frags
+#define CAN_BUS_FRAG_WIRE_LEN 64                                      // fixed stride for multi-fragment packets
 #define CAN_BUS_REASM_TIMEOUT_MS 1000u                                // tolerate interleaved multi-sender packets
 
 typedef struct __attribute__((packed))
@@ -436,16 +436,19 @@ static inline void rb_push_drop_oldest(uint32_t std_id, const uint8_t *data, uin
 // Pop frame in thread context
 static inline int rb_pop(can_bus_rx_frame_t *out)
 {
-  uint16_t t = g_rx_tail;
-  uint16_t h = g_rx_head;
-
-  if (h == t)
+  const uint32_t irq_mask = __get_PRIMASK();
+  __disable_irq();
+  const uint16_t t = g_rx_tail;
+  if (g_rx_head == t) {
+    __set_PRIMASK(irq_mask);
     return 0;
-
-  __DMB(); // acquire
+  }
+  /* The ISR may evict the oldest slot; keep copy and tail update atomic. */
+  __DMB();
   *out = g_rx_ring[t];
-  __DMB(); // conservative
   g_rx_tail = rb_next(t);
+  __DMB();
+  __set_PRIMASK(irq_mask);
   return 1;
 }
 
@@ -461,7 +464,7 @@ static inline int rb_pop(can_bus_rx_frame_t *out)
  *  - Call ONLY from thread/main-loop context.
  *  - ISRs must not drain HW FIFOs; they only set pending flags.
  */
-static void can_bus_drain_hw_to_ring_thread(void)
+static UNUSED_FUNCTION void can_bus_drain_hw_to_ring_thread(void)
 {
   if (!g_hfdcan)
     return;
@@ -470,14 +473,14 @@ static void can_bus_drain_hw_to_ring_thread(void)
   if (g_rx_fifo0_pending || (HAL_FDCAN_GetRxFifoFillLevel(g_hfdcan, FDCAN_RX_FIFO0) > 0))
   {
     g_rx_fifo0_pending = 0;
-    can_bus_drain_rx_fifo(g_hfdcan, FDCAN_RX_FIFO0);
+    can_bus_drain_rx_fifo(g_hfdcan, FDCAN_RX_FIFO0, CAN_BUS_RX_SERVICE_BUDGET);
   }
 
   /* RX FIFO1 */
   if (g_rx_fifo1_pending || (HAL_FDCAN_GetRxFifoFillLevel(g_hfdcan, FDCAN_RX_FIFO1) > 0))
   {
     g_rx_fifo1_pending = 0;
-    can_bus_drain_rx_fifo(g_hfdcan, FDCAN_RX_FIFO1);
+    can_bus_drain_rx_fifo(g_hfdcan, FDCAN_RX_FIFO1, CAN_BUS_RX_SERVICE_BUDGET);
   }
 
 #if CAN_BUS_DEBUG
@@ -711,13 +714,13 @@ static void handle_rx_frame(const can_bus_rx_frame_t *f, uint32_t now_ms)
 // RX drain helpers (used by polling and ISR wrappers)
 // =========================
 
-static void can_bus_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo)
+static void can_bus_drain_rx_fifo(FDCAN_HandleTypeDef *hfdcan, uint32_t fifo, uint32_t budget)
 {
   FDCAN_RxHeaderTypeDef hdr;
   uint8_t data[64];
   uint32_t drained = 0U;
 
-  while (drained < CAN_BUS_RX_SERVICE_BUDGET &&
+  while (drained < budget &&
          HAL_FDCAN_GetRxFifoFillLevel(hfdcan, fifo) > 0)
   {
     if (HAL_FDCAN_GetRxMessage(hfdcan, fifo, &hdr, data) != HAL_OK)
@@ -920,7 +923,7 @@ HAL_StatusTypeDef can_bus_send_bytes(const uint8_t *bytes, size_t len, uint32_t 
 }
 
 // Send an arbitrarily large buffer by fragmenting into multiple CAN FD frames.
-// This uses fixed 64B frames (DLC=64) and a small header in each frame.
+// Multi-fragment packets use 64-byte frames and a small header in each frame.
 HAL_StatusTypeDef can_bus_send_large(const uint8_t *bytes, size_t len, uint32_t std_id)
 {
   if (!g_hfdcan)
@@ -976,8 +979,11 @@ HAL_StatusTypeDef can_bus_send_large(const uint8_t *bytes, size_t len, uint32_t 
     memcpy(frame + hdr_sz, bytes + off, take);
     off += take;
 
-    // send a fixed 64-byte payload frame (pads zeros)
-    HAL_StatusTypeDef st = can_bus_send_bytes(frame, wire_len, std_id);
+    // Single fragments use the smallest legal DLC; multi-fragment stride stays 64 bytes.
+    /* Only a single fragment can shorten its first-frame stride.
+     * Keep multi-fragment frames fixed for existing reassembly code. */
+    const size_t used = frag_cnt == 1U ? hdr_sz + take : wire_len;
+    HAL_StatusTypeDef st = can_bus_send_bytes(frame, used, std_id);
     if (st != HAL_OK)
       return st;
   }
@@ -1019,7 +1025,9 @@ void can_bus_process_rx(void)
   }
 
   /* Thread-context HW drain (pull FIFO0/FIFO1 into the ring). */
+#if CAN_BUS_POLLING
   can_bus_drain_hw_to_ring_thread();
+#endif
 
   // Drain any TX event notifications queued by ISR (debug only)
   can_bus_tx_event_t txe;
@@ -1052,24 +1060,24 @@ void can_bus_process_rx(void)
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
-  (void)hfdcan;
-  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0)
+  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0U ||
+      hfdcan == NULL || hfdcan != g_hfdcan)
     return;
 
   g_fdcan_irq_count++;
-  g_fdcan_rx_count++;
-  g_rx_fifo0_pending = 1;
+  /* Move at most one physical FIFO into the ring; no decode/allocation here. */
+  (void)can_bus_drain_rx_fifo(hfdcan, FDCAN_RX_FIFO0, 3U);
 }
 
 void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 {
-  (void)hfdcan;
-  if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) == 0)
+  if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) == 0U ||
+      hfdcan == NULL || hfdcan != g_hfdcan)
     return;
 
   g_fdcan_irq_count++;
-  g_fdcan_rx_count++;
-  g_rx_fifo1_pending = 1;
+  /* Move at most one physical FIFO into the ring; no decode/allocation here. */
+  (void)can_bus_drain_rx_fifo(hfdcan, FDCAN_RX_FIFO1, 3U);
 }
 
 // TX event FIFO callback (called in ISR context). We read all new events
