@@ -130,14 +130,10 @@ class QualificationContractTests(unittest.TestCase):
         self.assertIn("seds_router_add_side_packed_profile_with_priority(", telemetry)
         self.assertIn("SEDS_SIDE_TRANSPORT_PROFILE_IPV6_LIKE", telemetry)
         can_bus = (root / "Core" / "Src" / "can_bus.c").read_text(encoding="utf-8")
-        self.assertIn("CAN_BUS_TX_ENQUEUE_TIMEOUT_MS 5U", can_bus)
         self.assertIn("HAL_FDCAN_AbortTxRequest", can_bus)
         self.assertNotIn("< (uint32_t)frag_cnt", can_bus)
-        enqueue = can_bus.split("static HAL_StatusTypeDef can_bus_enqueue_tx_frame", 1)[1]
-        enqueue = enqueue.split("static inline void can_bus_notify_rx", 1)[0]
-        self.assertNotIn("for (;;)", enqueue)
-        self.assertIn("HAL_GetTick()", enqueue)
-        self.assertIn("BOARD_CAN_MAX_FRAME_BYTES 128U", telemetry)
+        self.assertIn("BOARD_CAN_MAX_FRAME_BYTES CAN_TX_ALIGNED_FRAME_BYTES", telemetry)
+        self.assertIn("return can_tx_queue_submit(bytes, len, std_id);", can_bus)
 
     def test_underglow_uses_only_native_network_variable_apis(self):
         root = Path(build.__file__).resolve().parent

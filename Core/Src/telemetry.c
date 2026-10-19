@@ -1,8 +1,11 @@
+#include "can_tx_queue.h"
+#include "board_health.h"
 // telemetry.c
 #include "telemetry.h"
 #include "av_bay_underglow.h"
 #include "flight_state_cache.h"
 #include "sim_network_probe.h"
+#include "board_can_priority.h"
 #include "ota_stream.h"
 
 #include "app_threadx.h"
@@ -60,7 +63,7 @@ static void print_data_no_telem(void *data, size_t len) {
 
 static uint8_t g_can_rx_subscribed = 0U;
 static int32_t g_can_side_id = -1;
-#define BOARD_CAN_MAX_FRAME_BYTES 128U
+#define BOARD_CAN_MAX_FRAME_BYTES CAN_TX_ALIGNED_FRAME_BYTES
 #define BOARD_SIDE_TRANSPORT_TEMPLATES 4U
 static uint8_t g_local_unix_valid = 0U;
 static uint64_t g_local_unix_ms = 0ULL;
@@ -248,10 +251,8 @@ static SedsResult tx_send_with_priority(const uint8_t *bytes, size_t len,
   sim_probe_observe_can_tx(bytes, len);
   HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
   const uint32_t can_id =
-      (priority >= 200U ||
-       sim_probe_packed_data_type(bytes, len) == (uint32_t)SEDS_DT_HEARTBEAT)
-          ? 0x002U
-          : 0x102U;
+      board_can_arbitration_id(bytes, len, priority,
+          sim_probe_packed_data_type(bytes, len), (uint32_t)SEDS_DT_HEARTBEAT, 0x002U);
   return (can_bus_send_large(bytes, len, can_id) == HAL_OK) ? SEDS_OK : SEDS_IO;
 }
 
@@ -375,6 +376,10 @@ SedsResult telemetry_announce_discovery(void) {
 }
 
 SedsResult telemetry_poll_discovery(void) {
+#ifdef TELEMETRY_ENABLED
+  if (g_router.r) board_health_poll(g_router.r);
+#endif
+
 #ifndef TELEMETRY_ENABLED
   return SEDS_OK;
 #else

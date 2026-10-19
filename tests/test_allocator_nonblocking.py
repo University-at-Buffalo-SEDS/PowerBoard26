@@ -6,6 +6,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class AllocatorTests(unittest.TestCase):
     def test_allocator_never_waits_and_records_exact_failure(self):
         src = (ROOT/'Core/Src/telemetry_hooks.c').read_text()
+        begin = src.index("/* CAN's async queue")
+        end = src.index("void telemetryFree(", begin)
+        src = src[:begin] + src[end:]
         allocator = src[src.index('void *telemetryMalloc('):src.index('void telemetryFree(')]
         code = r'''
 #include <assert.h>

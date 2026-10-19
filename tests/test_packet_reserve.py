@@ -8,6 +8,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class PacketReserveTests(unittest.TestCase):
     def test_exhaustion_reuse_and_allocator_fallback(self):
         hooks = (ROOT / 'Core/Src/telemetry_hooks.c').read_text()
+        begin = hooks.index("/* CAN's async queue")
+        end = hooks.index("void telemetryFree(", begin)
+        hooks = hooks[:begin] + hooks[end:]
         allocator = hooks[hooks.index('void *telemetryMalloc('):hooks.index('void seds_error_msg(')]
         stub = r'''
 #include <stddef.h>
