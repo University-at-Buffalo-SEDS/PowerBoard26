@@ -247,6 +247,7 @@ volatile uint32_t g_sim_voltage_publish_ok
  * pack/dispatch network packets there: nested arena/codec/TLSF calls can exceed
  * that stack before ThreadX samples its high-water pointer. One latest-value
  * slot per measurement is sufficient for these slowly changing readings. */
+#ifdef TELEMETRY_ENABLED
 static float pending_voltage, pending_current;
 static uint32_t pending_reports;
 
@@ -259,6 +260,8 @@ static void stage_sensor_report(uint32_t bit, float value)
     pending_reports |= bit;
     __set_PRIMASK(saved);
 }
+
+#endif
 
 void telemetry_ltc2990_update_voltage(LTC2990_Handle_t *ltc2990_handle) {
     float voltages[4];

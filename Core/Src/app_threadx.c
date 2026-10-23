@@ -57,9 +57,12 @@ static void thread_stack_error_handler(TX_THREAD *thread_ptr)
     g_stack_error_end_guard = *((volatile uint32_t *)
         ((uint8_t *)thread_ptr->tx_thread_stack_end + 1U));
   }
+#ifdef TELEMETRY_ENABLED
   if (thread_ptr == &telemetry_thread) {
     g_telemetry_thread_stack_error_count++;
-  } else if (thread_ptr == &sensor_thread) {
+  } else
+#endif
+  if (thread_ptr == &sensor_thread) {
     g_sensor_thread_stack_error_count++;
   }
   Error_Handler();
@@ -88,11 +91,13 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
    * A byte pool nested inside an allocation from this pool corrupted its
    * search pointer under the first SEDSNet schema packing burst.
    */
+#ifdef TELEMETRY_ENABLED
   telemetry_set_byte_pool(byte_pool);
   /* Initialize telemetry lock used by Rust (telemetry_lock/telemetry_unlock). */
   telemetry_init_lock();
+#endif
   (void)tx_thread_stack_error_notify(thread_stack_error_handler);
-  
+
   static LTC2990_Handle_t ltc2990_voltage_handle;
   static LTC2990_Handle_t ltc2990_current_handle;
 
@@ -101,14 +106,16 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
     Error_Handler();
   }
 
+#ifdef TELEMETRY_ENABLED
   ret = create_telemetry_thread(byte_pool);
   if (ret != TX_SUCCESS)
   {
     Error_Handler();
   }
-  
 
 
+
+#endif
   /* USER CODE END App_ThreadX_Init */
 
   return ret;
