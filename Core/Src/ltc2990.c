@@ -250,13 +250,26 @@ volatile uint32_t g_sim_voltage_publish_ok
 #ifdef TELEMETRY_ENABLED
 static float pending_voltage, pending_current;
 static uint32_t pending_reports;
+static uint64_t pending_voltage_ms, pending_current_ms;
+static uint32_t publish_retry_after_ms;
+static uint8_t publish_retry_waiting;
+/* Bound transient admission recovery to 10 attempts/s and retire a sample
+ * after 1 s, well before the unchanged 5 s sensor acquisition interval. */
+#define SENSOR_PUBLISH_RETRY_MS 100U
+#define SENSOR_PUBLISH_MAX_AGE_MS 1000U
 
 static void stage_sensor_report(uint32_t bit, float value)
 {
+    const uint64_t sampled_at_ms = telemetry_now_ms();
     const uint32_t saved = __get_PRIMASK();
     __disable_irq();
-    if (bit == 1U) pending_voltage = value;
-    else pending_current = value;
+    if (bit == 1U) {
+        pending_voltage = value;
+        pending_voltage_ms = sampled_at_ms;
+    } else {
+        pending_current = value;
+        pending_current_ms = sampled_at_ms;
+    }
     pending_reports |= bit;
     __set_PRIMASK(saved);
 }
@@ -287,18 +300,40 @@ void telemetry_ltc2990_update_current(LTC2990_Handle_t *ltc2990_handle) {
 void telemetry_ltc2990_publish_pending(void)
 {
 #ifdef TELEMETRY_ENABLED
+    const uint64_t now_ms = telemetry_now_ms();
+    if (publish_retry_waiting &&
+        (int32_t)((uint32_t)now_ms - publish_retry_after_ms) < 0) return;
+    publish_retry_waiting = 0U;
     const uint32_t saved = __get_PRIMASK();
     __disable_irq();
     const uint32_t reports = pending_reports;
     const float voltage = pending_voltage, current = pending_current;
+    const uint64_t voltage_ms = pending_voltage_ms, current_ms = pending_current_ms;
     pending_reports = 0U;
     __set_PRIMASK(saved);
-    if (reports & 1U) {
+    uint32_t retry = 0U;
+    if ((reports & 1U) && voltage_ms <= now_ms &&
+        now_ms - voltage_ms < SENSOR_PUBLISH_MAX_AGE_MS) {
         g_sim_voltage_publish_attempts++;
-        if (log_telemetry_asynchronous(SEDS_DT_BATTERY_VOLTAGE, &voltage, 1, sizeof(float)) == SEDS_OK)
+        if (log_telemetry_asynchronous_at(SEDS_DT_BATTERY_VOLTAGE, &voltage, 1,
+                                        sizeof(float), voltage_ms) == SEDS_OK)
             g_sim_voltage_publish_ok++;
+        else retry |= 1U;
     }
-    if (reports & 2U)
-        (void)log_telemetry_asynchronous(SEDS_DT_BATTERY_CURRENT, &current, 1, sizeof(float));
+    if ((reports & 2U) && current_ms <= now_ms &&
+        now_ms - current_ms < SENSOR_PUBLISH_MAX_AGE_MS &&
+        log_telemetry_asynchronous_at(SEDS_DT_BATTERY_CURRENT, &current, 1,
+                                     sizeof(float), current_ms) != SEDS_OK)
+        retry |= 2U;
+    if (retry != 0U) {
+        const uint32_t retry_saved = __get_PRIMASK();
+        __disable_irq();
+        /* Preserve the latest staged payload/time if acquisition ran while
+         * publication was in progress; never copy the old snapshot back. */
+        pending_reports |= retry;
+        __set_PRIMASK(retry_saved);
+        publish_retry_after_ms = (uint32_t)now_ms + SENSOR_PUBLISH_RETRY_MS;
+        publish_retry_waiting = 1U;
+    }
 #endif
 }

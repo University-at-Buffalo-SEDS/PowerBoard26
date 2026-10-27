@@ -29,6 +29,12 @@ SedsResult log_telemetry_synchronous(SedsDataType data_type, const void *data,
 SedsResult log_telemetry_asynchronous(SedsDataType data_type, const void *data,
                                       size_t element_count, size_t element_size);
 
+/* sampled_at_ms is the acquisition time from telemetry_now_ms(), not the
+ * later publication time. Admission retries retain the sample's actual age. */
+SedsResult log_telemetry_asynchronous_at(SedsDataType data_type, const void *data,
+                                       size_t element_count, size_t element_size,
+                                       uint64_t sampled_at_ms);
+
 SedsResult log_telemetry_string_asynchronous(SedsDataType data_type, const char *str);
 
 SedsResult dispatch_tx_queue(void);

@@ -1,0 +1,42 @@
+{
+  "problem": "A rejected PB voltage/current admission cleared the only pending sample until the next 5-second acquisition.",
+  "behavior": {
+    "retry_interval_ms": 100,
+    "maximum_acquisition_age_ms": 1000,
+    "sampling_interval_ms": 5000,
+    "policy": "One latest value per channel; retry only failed channels; retire stale acquisition; retain acquisition age across current network clock mapping.",
+    "extra_static_state_bytes": 21,
+    "alignment_allowance_bytes": 3,
+    "extra_dynamic_allocations": 0
+  },
+  "validation": {
+    "native_tests": 135,
+    "result": "PASS",
+    "before_failure": "/tmp/pb-pending-retry-before-20261026.log",
+    "native_log": "/tmp/pb-freshness-tests-20261026.log",
+    "regressions": [
+      "Admission rejection recovers at 100ms without acquiring another sample",
+      "Expired data is not retried or re-stamped as fresh",
+      "Concurrent acquisition wins over failed old publication",
+      "Successful channel does not replay during other channel failure",
+      "Permanent pressure is capped at 10 attempts per second",
+      "Explicit UTC and router-relative timestamps retain acquisition age"
+    ]
+  },
+  "build": {
+    "sdk_version": "4.2.7",
+    "sdk_base_commit": "2b1983e6c31c9caffaa129ba8bc9f3b899f4fbd2",
+    "sdk_router_sha256": "e705ffe5729d1d60df51f79e7bfe5f11315430f73c00cb7297733206497c2925",
+    "profile": "Copied frozen PB cohort SDK; TLSF, board watchdog, SIM_TEST ON; additive build directory",
+    "elf": "build/RadioFreshness-20261026/PowerBoard26.elf",
+    "elf_sha256": "8745542d37f057673ee9279860ff9a1e08cb21b18ffca3da4d5a0c28aa3f9bfe",
+    "ram_bytes": 109392,
+    "ram_capacity_bytes": 114688,
+    "firmware_flash_bytes": 397768,
+    "firmware_flash_capacity_bytes": 474624
+  },
+  "limitations": [
+    "Native regression and cross-build are not physical sensor-to-GS qualification.",
+    "No sampling rates, stale thresholds, queue budgets, or SDK release changed."
+  ]
+}

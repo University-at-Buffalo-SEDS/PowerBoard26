@@ -583,6 +583,37 @@ SedsResult log_telemetry_asynchronous(SedsDataType data_type, const void *data,
 #endif
 }
 
+SedsResult log_telemetry_asynchronous_at(SedsDataType data_type, const void *data,
+                                       size_t element_count, size_t element_size,
+                                       uint64_t sampled_at_ms) {
+#ifdef TELEMETRY_ENABLED
+  if (!data || element_count == 0U || element_size == 0U ||
+      element_count > SIZE_MAX / element_size) {
+    return SEDS_BAD_ARG;
+  }
+  if (!g_router.r && init_telemetry_router() != SEDS_OK) return SEDS_ERR;
+  const uint64_t now_ms = telemetry_now_ms();
+  if (sampled_at_ms > now_ms) return SEDS_BAD_ARG;
+  const uint64_t age_ms = now_ms - sampled_at_ms;
+  const uint64_t network_ms = telemetry_unix_ms();
+  uint64_t timestamp_ms;
+  if (network_ms > age_ms) {
+    timestamp_ms = network_ms - age_ms;
+  } else {
+    if (sampled_at_ms < g_router.start_time) return SEDS_BAD_ARG;
+    timestamp_ms = sampled_at_ms - g_router.start_time;
+  }
+  return seds_router_log_typed_ex(g_router.r, data_type, data, element_count,
+                                element_size, guess_kind_from_elem_size(element_size),
+                                &timestamp_ms, 0);
+#else
+  (void)data_type;
+  (void)sampled_at_ms;
+  print_data_no_telem((void *)data, element_count * element_size);
+  return SEDS_OK;
+#endif
+}
+
 SedsResult log_telemetry_string_asynchronous(SedsDataType data_type, const char *str) {
 #ifdef TELEMETRY_ENABLED
   if (!str) {
