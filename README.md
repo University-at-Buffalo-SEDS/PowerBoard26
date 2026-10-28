@@ -68,6 +68,11 @@ Telemetry publication rate is a board-local preprocessor setting:
 reflash after changing it. It is not a network variable. Actual throughput
 is limited by sensor acquisition, RTOS tick resolution and link capacity.
 
+Power voltage and current reports use unordered reliable delivery. Accepted
+low-rate health samples must survive temporary discovery and forwarding queue
+pressure until their consumers acknowledge them. This leaves the five-second
+source cadence and the existing memory/queue limits unchanged.
+
 ## Hardware watchdog
 
 [Board watchdog configuration and validation](docs/watchdog.md). Build with
