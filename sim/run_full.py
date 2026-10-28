@@ -289,10 +289,19 @@ def run_memory_profile(
         probe for probe in probes
         if probe.get("name") not in {"network_ready", "discovery_seen", "timesync_valid"}
     ]
-    layout["execution"]["memory_probe_warmup_samples"] = min(
-        19,
-        max(3, int(layout["execution"].get("memory_probe_warmup_samples", 0))),
-    )
+    execution = layout["execution"]
+    original_duration = execution["virtual_time_ms"]
+    original_samples = execution["sample_count"]
+    duration = max(1000, original_duration)
+    samples = 20
+    # Keep the original startup allowance in milliseconds when increasing
+    # observation density. All watchdog and memory bounds stay unchanged.
+    numerator = execution.get("memory_probe_warmup_samples", 0) * original_duration * samples
+    denominator = original_samples * duration
+    warmup = (numerator + denominator - 1) // denominator
+    execution["memory_probe_warmup_samples"] = min(samples - 2, max(3, warmup))
+    execution["sample_count"] = samples
+    execution["virtual_time_ms"] = duration
     # Instruction tracing retains every executed PC and can consume gigabytes
     # while an isolated controller repeatedly retries CAN. Register and memory
     # probes still provide the required fault diagnostics for this soak.
