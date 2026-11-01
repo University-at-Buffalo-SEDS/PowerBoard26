@@ -2,6 +2,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from checked_router_fixture import checked_hooks
+from router_lifecycle_fixture import function as actual_function
 ROOT=Path(__file__).resolve().parents[1]
 class SensorPublicationTests(unittest.TestCase):
     def test_acquisition_never_enters_router_and_latest_values_publish_once(self):
@@ -83,8 +85,7 @@ int main(void){
 
     def test_retry_timestamp_retains_acquisition_age_in_the_current_clock_domain(self):
         source=(ROOT/'Core/Src/telemetry.c').read_text()
-        function=source[source.index('SedsResult log_telemetry_asynchronous_at('):
-                        source.index('SedsResult log_telemetry_string_asynchronous(')]
+        function='\n'.join(actual_function(source,n)for n in ('log_telemetry_asynchronous_at_locked','log_telemetry_asynchronous_at'))
         harness=r'''
 #include <stdint.h>
 #include <stddef.h>
@@ -97,7 +98,9 @@ typedef int SedsResult;
 #define SEDS_BAD_ARG 2
 static struct {void *r;uint64_t start_time;} g_router={(void*)1,100};
 static uint64_t now_ms,network_ms,last_timestamp;
-static unsigned calls;
+static unsigned calls,locked;
+void telemetry_lock(void){assert(!locked);++locked;}
+void telemetry_unlock(void){assert(locked==1);--locked;}
 uint64_t telemetry_now_ms(void){return now_ms;}
 uint64_t telemetry_unix_ms(void){return network_ms;}
 int init_telemetry_router(void){return SEDS_ERR;}
@@ -106,7 +109,7 @@ int seds_router_log_typed_ex(void*router,unsigned type,const void*value,size_t c
  assert(router==(void*)1&&type==1&&value&&count==1&&size==sizeof(float)&&kind==2&&time&&!queue);
  ++calls;last_timestamp=*time;return SEDS_OK;
 }
-''' + function + r'''
+''' +checked_hooks(ROOT)+'\n'+ function + r'''
 int main(void){
  float value=16;
  now_ms=1500;network_ms=100000;
