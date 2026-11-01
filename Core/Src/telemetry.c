@@ -4,6 +4,7 @@
 #include "telemetry.h"
 #include "av_bay_underglow.h"
 #include "flight_state_cache.h"
+#include "board_recovery_transport.h"
 #include "sim_network_probe.h"
 #include "board_can_priority.h"
 #include "ota_stream.h"
@@ -421,6 +422,13 @@ static __attribute__((unused)) bool telemetry_memory_admission_probe(
 }
 #endif
 
+static SedsResult Board_Recovery_handler(const SedsPacketView *packet, void *user)
+{
+  (void)user;
+  return board_recovery_handle(g_router.r, packet, SEDS_EP_BOARD_RECOVERY,
+      (uint32_t)(((uint64_t)tx_time_get() * 1000U) / TX_TIMER_TICKS_PER_SECOND));
+}
+
 SedsResult init_telemetry_router(void) {
 #ifndef TELEMETRY_ENABLED
   return SEDS_OK;
@@ -428,6 +436,12 @@ SedsResult init_telemetry_router(void) {
   SedsRouter *r = NULL;
   SedsResult result = SEDS_OK;
   const SedsLocalEndpointDesc locals[] = {
+      {
+          .endpoint = SEDS_EP_BOARD_RECOVERY,
+          .packet_handler = Board_Recovery_handler,
+          .packed_handler = NULL,
+          .user = NULL,
+      },
 #if SEDS_FIRMWARE_SIM_TEST
       {.endpoint = SEDS_EP_HEART_BEAT,
        .packet_handler = sim_probe_heartbeat_handler,
@@ -517,6 +531,7 @@ SedsResult init_telemetry_router(void) {
   /* Discovery begins from the normal poll loop after CAN startup. */
 
   g_router.r = r;
+  board_recovery_transport_set_router(r);
   (void)flight_state_cache_init(r);
   g_router.created = 1U;
   g_discovery_schema_announced = 0U;
