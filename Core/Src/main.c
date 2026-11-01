@@ -26,6 +26,7 @@
 #include "can_bus.h"
 #include "av_bay_underglow.h"
 #include "flight_state_cache.h"
+#include "board_recovery_boot.h"
 #include "ux_api.h"
 #include "ux_device_class_cdc_acm.h"
 #include <stdint.h>
@@ -122,6 +123,8 @@ int main(void)
   /* Restore the LaunchCore-managed LED state before ThreadX or SEDSNet start;
    * network-variable synchronization must not gate visible startup state. */
   av_bay_underglow_restore();
+  /* Establish recovery identity before cached state restore and control tasks. */
+  (void)board_recovery_boot_generation();
   flight_state_cache_restore();
   /* USER CODE END 2 */
 
