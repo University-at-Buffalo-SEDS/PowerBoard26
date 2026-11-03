@@ -1,3 +1,6 @@
+#include "board_commissioning.h"
+#include "board_recovery_floor.h"
+#include "persistent_store.h"
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
@@ -122,9 +125,12 @@ int main(void)
   /* USER CODE BEGIN 2 */
   /* Restore the LaunchCore-managed LED state before ThreadX or SEDSNet start;
    * network-variable synchronization must not gate visible startup state. */
+  (void)persistent_store_boot_begin();
   av_bay_underglow_restore();
   /* Establish recovery identity before cached state restore and control tasks. */
   (void)board_recovery_boot_generation();
+  (void)board_recovery_floor_prime_boot(); /* Cached failure stays queryable/inhibited. */
+  board_commissioning_probe_boot();
   flight_state_cache_restore();
   /* USER CODE END 2 */
 

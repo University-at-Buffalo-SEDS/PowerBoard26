@@ -1,3 +1,4 @@
+#include "persistent_store.h"
 /* USER CODE BEGIN Header */
 /* USER CODE END Header */
 
@@ -101,6 +102,7 @@ UINT App_ThreadX_Init(VOID *memory_ptr)
   static LTC2990_Handle_t ltc2990_voltage_handle;
   static LTC2990_Handle_t ltc2990_current_handle;
 
+  (void)persistent_store_runtime_start();
   ret = create_sensor_thread(byte_pool, &ltc2990_voltage_handle, &ltc2990_current_handle);
   if (ret != TX_SUCCESS) {
     Error_Handler();
