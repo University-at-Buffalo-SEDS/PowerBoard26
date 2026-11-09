@@ -22,6 +22,8 @@ volatile uint32_t g_flight_state_cache_restores __attribute__((used, externally_
 volatile uint32_t g_flight_state_cache_writes __attribute__((used, externally_visible)) = 0U;
 volatile uint32_t g_flight_state_cache_updates __attribute__((used, externally_visible)) = 0U;
 volatile uint32_t g_flight_state_cache_errors __attribute__((used, externally_visible)) = 0U;
+/* Non-station FLIGHT_STATE reports refused without applying: not errors. */
+volatile uint32_t g_flight_state_cache_reports_ignored __attribute__((used, externally_visible)) = 0U;
 
 static bool g_restore_attempted;
 static bool g_persist_ready;
@@ -49,6 +51,15 @@ flight_state_cache_apply_network_update(const SedsPacketView *packet)
 {
     (void)packet;
     return SEDS_OK;
+}
+/* Nonzero for a well-formed report that is not a station write (the FC's
+ * FLIGHT_STATE). board_recovery_transport.c owns the definition; isolated
+ * harnesses keep the strict default. */
+__attribute__((weak)) uint8_t
+board_recovery_managed_report_ignorable(const SedsPacketView *packet)
+{
+    (void)packet;
+    return 0U;
 }
 /* Acknowledged refusals; board_recovery_transport.c owns the definition. */
 __attribute__((weak)) volatile uint32_t g_reliable_refusal_count;
@@ -157,6 +168,12 @@ static SedsResult persist_update(const SedsPacketView *packet, void *user)
          * the station, stale, store not ready) is deterministic: ignore it
          * without applying so the sender stops retransmitting. */
         (void)clear_managed_cache();
+        /* The FC's own FLIGHT_STATE reaches this bus as a report. Refusing it
+         * is correct and is not a cache error. */
+        if (board_recovery_managed_report_ignorable(packet)) {
+            ++g_flight_state_cache_reports_ignored;
+            return SEDS_OK;
+        }
         ++g_flight_state_cache_errors;
         ++g_reliable_refusal_count;
         return SEDS_OK;

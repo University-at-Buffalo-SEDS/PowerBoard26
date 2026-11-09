@@ -17,6 +17,8 @@
 
 extern volatile uint32_t g_reliable_refusal_count;
 extern volatile uint32_t g_flight_state_cache_writes;
+extern volatile uint32_t g_flight_state_cache_errors;
+extern volatile uint32_t g_flight_state_cache_reports_ignored;
 volatile uint32_t g_telemetry_discovery_seen;
 static uint64_t mono_ms = 1000U;
 static int allowed = 1, ota_busy;
@@ -118,13 +120,34 @@ int main(int argc, char **argv)
   assert(r == SEDS_OK && receipts == 3U && flight_state_cache_value() == 3U && writes == 1U);
   assert(g_reliable_refusal_count > after_refused);
 
+  /* A FLIGHT_STATE the FC reports for itself is not a station write. Refusing
+   * it is correct, not a cache error: it is relayed, never applied, and counted
+   * apart from errors so the simulator's zero-error bound holds. */
+  allowed = 0;
+  const uint32_t errors_before = g_flight_state_cache_errors;
+  const uint32_t ignored_before = g_flight_state_cache_reports_ignored;
+  const unsigned relayed_before = relayed;
+  r = deliver("FC", 2U);
+  printf("fc report result=%d relayed=%u value=%u writes=%u errors=%u ignored=%u\n", r,
+         relayed - relayed_before, flight_state_cache_value(), writes,
+         (unsigned)(g_flight_state_cache_errors - errors_before),
+         (unsigned)(g_flight_state_cache_reports_ignored - ignored_before));
+  assert(r == SEDS_OK && relayed > relayed_before);
+  assert(flight_state_cache_value() == 3U && writes == 1U && stored == 3U);
+  assert(g_flight_state_cache_errors == errors_before);
+  assert(g_flight_state_cache_reports_ignored > ignored_before);
+  allowed = 1;
+
   /* Transient: the OTA owner is busy. No receipt, so the station retries. */
+  const unsigned receipts_before = receipts;
   ota_busy = 1;
   r = deliver("GS", 4U);
-  printf("transient result=%d receipts=%u value=%u\n", r, receipts, flight_state_cache_value());
-  assert(r != SEDS_OK && receipts == 3U && flight_state_cache_value() == 3U);
+  printf("transient result=%d receipts=%u value=%u\n", r, receipts - receipts_before,
+         flight_state_cache_value());
+  assert(r != SEDS_OK && receipts == receipts_before && flight_state_cache_value() == 3U);
   ota_busy = 0;
-  assert(deliver("GS", 4U) == SEDS_OK && receipts == 4U && flight_state_cache_value() == 4U && writes == 2U);
+  assert(deliver("GS", 4U) == SEDS_OK && receipts == receipts_before + 1U &&
+         flight_state_cache_value() == 4U && writes == 2U);
 
   seds_router_free(board);
   puts("PASS refused and malformed FLIGHT_STATE acknowledged and relayed without applying; transient refusal retried");
