@@ -94,6 +94,8 @@ RouterState g_router = {.r = NULL, .created = 0U, .start_time = 0ULL};
  * remote discovery topology change and a valid SEDSNet network clock. */
 volatile uint32_t g_telemetry_discovery_seen = 0U;
 volatile uint32_t g_telemetry_timesync_valid = 0U;
+/* Network clock restarts after it disagreed with the station clock by >60 s. */
+volatile uint32_t g_network_clock_resyncs = 0U;
 volatile uint32_t g_telemetry_network_ready = 0U;
 /* Optional router services that failed to start (TELEMETRY_SERVICE_* bits).
  * The router, CAN side, discovery and BOARD_HEALTH keep running; failed
@@ -413,6 +415,11 @@ static void telemetry_update_network_health(SedsRouter *router) {
   uint64_t network_time_ms = 0ULL;
   if (seds_router_get_network_time_ms(router, &network_time_ms) == SEDS_OK) {
     g_telemetry_timesync_valid = 1U;
+    if (board_recovery_network_clock_resync_needed(network_time_ms) &&
+        telemetry_configure_timesync_locked(router) == SEDS_OK) {
+      g_network_clock_resyncs++;
+      network_time_ms = 0ULL;
+    }
   }
   if (g_telemetry_discovery_seen != 0U &&
       g_telemetry_timesync_valid != 0U) {
