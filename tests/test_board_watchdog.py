@@ -54,6 +54,13 @@ int main(void){
  unsigned fed=g_watchdog_feed_count;
  tick=200;board_watchdog_progress(1);board_watchdog_progress(2);
  assert(g_watchdog_feed_count==fed+1); /* tick wrap */
+ /* A slow healthy task leaves missing set after each feed; overdue only
+  * names a task with no check-in for longer than the limit. */
+ board_watchdog_progress(2);assert(g_watchdog_missing_mask==1 && board_watchdog_overdue_mask()==0);
+ tick+=BOARD_WATCHDOG_OVERDUE_MS;assert(board_watchdog_overdue_mask()==0);
+ tick+=1;assert(board_watchdog_overdue_mask()==3 && !mask);
+ board_watchdog_progress(2);assert(board_watchdog_overdue_mask()==1);
+ board_watchdog_progress(1);assert(board_watchdog_overdue_mask()==0);
  // A genuinely stuck configuration update must fail within the deadline.
  iwdg.SR=IWDG_SR_RVU|0x100U;pending_updates=0;init_tick=UINT32_MAX-50;
  board_watchdog_start();assert(g_watchdog_config_error==1 && !g_watchdog_started);

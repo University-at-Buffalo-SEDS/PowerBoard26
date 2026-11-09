@@ -17,4 +17,8 @@ extern volatile uint32_t g_watchdog_missing_mask;
 extern volatile uint32_t g_watchdog_config_error;
 void board_watchdog_start(void);
 void board_watchdog_progress(uint32_t task);
+/* Required tasks without a check-in for over BOARD_WATCHDOG_OVERDUE_MS. Unlike
+ * g_watchdog_missing_mask (tasks pending since the last feed, which a slow but
+ * healthy task keeps set for most of its period) this names a stalled task. */
+uint32_t board_watchdog_overdue_mask(void);
 #endif

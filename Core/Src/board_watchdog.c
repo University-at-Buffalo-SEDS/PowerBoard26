@@ -11,6 +11,10 @@
 #else
 #define WATCHDOG_REQUIRED BOARD_WATCHDOG_REQUIRED_MASK
 #endif
+#ifndef BOARD_WATCHDOG_OVERDUE_MS
+/* Half the ~16 s IWDG deadline; the 5 s acquisition period stays well inside. */
+#define BOARD_WATCHDOG_OVERDUE_MS 8000U
+#endif
 #ifndef BOARD_WATCHDOG_REQUIRED_MASK
 #define BOARD_WATCHDOG_REQUIRED_MASK BOARD_WATCHDOG_NETWORK
 #endif
@@ -23,6 +27,7 @@ volatile uint32_t g_watchdog_missing_mask = WATCHDOG_REQUIRED;
 volatile uint32_t g_watchdog_config_error;
 #if BOARD_WATCHDOG_ENABLE
 static ULONG last_feed_tick;
+static ULONG last_progress_tick[5];
 #endif
 
 void board_watchdog_start(void)
@@ -69,9 +74,12 @@ void board_watchdog_progress(uint32_t task)
     if (g_watchdog_started == 0U) return;
     const uint32_t saved = __get_PRIMASK();
     __disable_irq();
+    const ULONG now = tx_time_get();
+    for (uint32_t i = 0U; i < 5U; i++) {
+        if ((task & WATCHDOG_REQUIRED & (1UL << i)) != 0U) last_progress_tick[i] = now;
+    }
     g_watchdog_seen_mask |= task & WATCHDOG_REQUIRED;
     g_watchdog_missing_mask = WATCHDOG_REQUIRED & ~g_watchdog_seen_mask;
-    const ULONG now = tx_time_get();
     if (g_watchdog_missing_mask == 0U &&
         (ULONG)(now - last_feed_tick) >= TX_TIMER_TICKS_PER_SECOND / 4U) {
         /* Each required task must check in again after every feed. A live
@@ -85,6 +93,27 @@ void board_watchdog_progress(uint32_t task)
     __set_PRIMASK(saved);
 #else
     (void)task;
+#endif
+}
+
+uint32_t board_watchdog_overdue_mask(void)
+{
+#if BOARD_WATCHDOG_ENABLE
+    if (g_watchdog_started == 0U) return g_watchdog_missing_mask;
+    const ULONG limit = (ULONG)(((uint64_t)BOARD_WATCHDOG_OVERDUE_MS *
+                                 TX_TIMER_TICKS_PER_SECOND) / 1000U);
+    const uint32_t saved = __get_PRIMASK();
+    __disable_irq();
+    const ULONG now = tx_time_get();
+    uint32_t overdue = 0U;
+    for (uint32_t i = 0U; i < 5U; i++) {
+        if ((WATCHDOG_REQUIRED & (1UL << i)) != 0U &&
+            (ULONG)(now - last_progress_tick[i]) > limit) overdue |= 1UL << i;
+    }
+    __set_PRIMASK(saved);
+    return overdue;
+#else
+    return g_watchdog_missing_mask;
 #endif
 }
 

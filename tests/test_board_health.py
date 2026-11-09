@@ -22,7 +22,9 @@ typedef int SedsResult;
 uint64_t uptime;
 unsigned calls,lock_depth,mask,refuse;
 uint32_t captured[24];
-volatile uint32_t g_watchdog_reset_flags=123,g_watchdog_missing_mask=5,g_telemetry_service_faults=0;
+volatile uint32_t g_watchdog_reset_flags=123,g_watchdog_missing_mask=9,g_telemetry_service_faults=0;
+/* Word 6 carries stalled tasks, not the pending-since-feed mask above. */
+uint32_t board_watchdog_overdue_mask(void){assert(mask);return 5;}
 volatile uint32_t g_telemetry_tlsf_live_bytes=100,g_telemetry_tlsf_peak_bytes=200,g_telemetry_tlsf_region_bytes=4096,g_telemetry_tlsf_failures=7;
 volatile uint32_t g_can_tx_rejected=11,g_can_tx_high_water=12,g_gateway_uart_rx_ring_drops=13;
 volatile uint32_t g_sd_raw_records_enqueued_count=0xf00d1234U,g_sd_raw_records_written_count=15,g_sd_raw_records_dropped_count=16,g_sd_raw_records_flushed_count=17,g_sd_raw_records_io_lost_count=18,g_sd_write_error_count=19,g_sd_max_write_ms=20;
