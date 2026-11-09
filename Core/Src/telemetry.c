@@ -79,6 +79,12 @@ static uint8_t g_discovery_schema_announced = 0U;
 static uint64_t g_discovery_schema_retry_ms = 0ULL;
 
 #define TELEMETRY_ROUTER_RETRY_MS 500U
+#define TELEMETRY_SERVICE_RETRY_MS 5000U
+#define TELEMETRY_SERVICE_TIMESYNC 0x1U
+#define TELEMETRY_SERVICE_OTA 0x2U
+#define TELEMETRY_SERVICE_UNDERGLOW 0x4U
+#define TELEMETRY_SERVICE_FLIGHT_STATE 0x8U
+#define TELEMETRY_SERVICE_ALL 0xFU
 #ifdef TELEMETRY_ENABLED
 static uint32_t g_router_retry_after_ms;
 #endif
@@ -89,6 +95,15 @@ RouterState g_router = {.r = NULL, .created = 0U, .start_time = 0ULL};
 volatile uint32_t g_telemetry_discovery_seen = 0U;
 volatile uint32_t g_telemetry_timesync_valid = 0U;
 volatile uint32_t g_telemetry_network_ready = 0U;
+/* Optional router services that failed to start (TELEMETRY_SERVICE_* bits).
+ * The router, CAN side, discovery and BOARD_HEALTH keep running; failed
+ * services are retried on a bounded schedule and reported in BOARD_HEALTH. */
+volatile uint32_t g_telemetry_service_faults = 0U;
+volatile int32_t g_telemetry_service_last_error = 0;
+#ifdef TELEMETRY_ENABLED
+static uint32_t g_telemetry_service_retry_ms = 0U;
+static void telemetry_retry_services_locked(void);
+#endif
 volatile uint32_t g_telemetry_peer_mask = 0U;
 volatile uint32_t g_sim_heartbeat_attempts = 0U;
 volatile uint32_t g_sim_heartbeat_ok = 0U;
@@ -481,6 +496,7 @@ static SedsResult telemetry_poll_discovery_locked(void) {
     }
   }
   board_commissioning_service();
+  telemetry_retry_services_locked();
   (void)flight_state_cache_poll(g_router.r);
   const SedsResult result = seds_router_poll_discovery(g_router.r, &did_queue);
   if (result == SEDS_OK) {
@@ -520,6 +536,43 @@ static SedsResult Board_Recovery_handler(const SedsPacketView *packet, void *use
   return board_recovery_handle(g_router.r, packet, SEDS_EP_BOARD_RECOVERY,
       (uint32_t)(((uint64_t)tx_time_get() * 1000U) / TX_TIMER_TICKS_PER_SECOND));
 }
+
+#ifdef TELEMETRY_ENABLED
+/* Start the optional services named in `wanted`; returns the still-failed
+ * subset. Each initializer tolerates being repeated after a failure. */
+static uint32_t telemetry_start_services_locked(SedsRouter *r, uint32_t wanted) {
+  /* Bit i of TELEMETRY_SERVICE_* is entry i. */
+  static SedsResult (*const start[4])(SedsRouter *) = {
+      telemetry_configure_timesync_locked, ota_stream_init,
+      av_bay_underglow_init, flight_state_cache_init};
+  uint32_t failed = 0U;
+  for (uint32_t i = 0U; i < 4U; i++) {
+    if ((wanted & (1UL << i)) == 0U) continue;
+    const SedsResult result = start[i](r);
+    if (result != SEDS_OK) {
+      failed |= 1UL << i;
+      g_telemetry_service_last_error = (int32_t)result;
+    }
+  }
+  g_telemetry_service_faults = (g_telemetry_service_faults & ~wanted) | failed;
+  if (failed != 0U) {
+    /* 1 timesync, 2 OTA stream/storage, 4 underglow, 8 flight-state cache. */
+    printf("Error: failed services 0x%lx (%d)\r\n", (unsigned long)failed,
+           (int)g_telemetry_service_last_error);
+    g_telemetry_service_retry_ms =
+        (uint32_t)tx_raw_now_ms_locked() + TELEMETRY_SERVICE_RETRY_MS;
+  }
+  return failed;
+}
+
+/* Bounded background retry of failed optional services (router lock held). */
+static void telemetry_retry_services_locked(void) {
+  if (!g_router.r || g_telemetry_service_faults == 0U) return;
+  const uint32_t now = (uint32_t)tx_raw_now_ms_locked();
+  if ((int32_t)(now - g_telemetry_service_retry_ms) < 0) return;
+  (void)telemetry_start_services_locked(g_router.r, g_telemetry_service_faults);
+}
+#endif
 
 static SedsResult init_telemetry_router_locked(void) {
 #ifndef TELEMETRY_ENABLED
@@ -595,40 +648,15 @@ static SedsResult init_telemetry_router_locked(void) {
     g_can_side_id = -1;
   }
 
-  result = telemetry_configure_timesync_locked(r);
-  if (result != SEDS_OK) {
-    printf("Error: failed to configure telemetry timesync: %d\r\n", (int)result);
-    seds_router_free(r);
-    g_router.r = NULL;
-    g_router.created = 0U;
-    g_can_side_id = -1;
-    return result;
-  }
-
-  result = ota_stream_init(r);
-  if (result != SEDS_OK) {
-    printf("Error: failed to bind OTA stream: %d\r\n", (int)result);
-    seds_router_free(r);
-    g_router.r = NULL;
-    g_router.created = 0U;
-    return result;
-  }
-
-  result = av_bay_underglow_init(r);
-  if (result != SEDS_OK) {
-    seds_router_free(r);
-    return result;
-  }
-
-  /* Discovery begins from the normal poll loop after CAN startup. */
-
+  /* The router and its CAN side exist. Everything below is an optional
+   * service: a failure is recorded and retried in the background, but it
+   * must never free the router. Freeing it announced DISCOVERY_LEAVE and hid
+   * this board from the ground on every 500 ms retry while the failure lasted. */
   g_discovery_schema_announced = 0U;
   g_discovery_schema_retry_ms = 0ULL;
-  result = flight_state_cache_init(r);
-  if (result != SEDS_OK) {
-    seds_router_free(r);
-    return result;
-  }
+  g_telemetry_service_faults = 0U;
+  (void)telemetry_start_services_locked(r, TELEMETRY_SERVICE_ALL);
+  (void)result;
   /* Publish only a complete router. RX and lazy producers share its mutex. */
   board_recovery_transport_set_router(r);
   g_router.r = r;

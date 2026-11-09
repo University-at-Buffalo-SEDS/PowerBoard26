@@ -51,10 +51,13 @@ class RouterLifecycleTests(unittest.TestCase):
     def test_two_initializers_and_actual_rx_wait_for_complete_registration(self): self.case('race')
     def test_isr_startup_missing_mutex_and_failed_acquisition_do_no_sdk_work(self): self.case('context')
     def test_packet_store_failure_is_private_and_retries_after_deadline(self): self.case('1')
-    def test_timesync_configuration_failure_cannot_publish_freed_router(self): self.case('2')
-    def test_ota_failure_cannot_publish_freed_router(self): self.case('3')
-    def test_enable_failure_cannot_advertise_ready_recovery(self): self.case('4')
-    def test_callback_failure_cannot_advertise_ready_recovery(self): self.case('5')
+    # Relay first: optional service failures keep the router, CAN traffic
+    # and health running, record a fault and retry it in the background.
+    def test_timesync_configuration_failure_keeps_router_and_retries(self): self.case('2')
+    def test_ota_failure_keeps_router_and_retries(self): self.case('3')
+    def test_flight_cache_enable_failure_keeps_router_without_ready_cache(self): self.case('4')
+    def test_flight_cache_callback_failure_keeps_router_without_ready_cache(self): self.case('5')
+    def test_underglow_failure_keeps_router_and_retries(self): self.case('9')
     def test_retry_deadline_survives_uint32_rollover(self): self.case('rollover')
     def test_zero_deadline_sentinel_has_at_most_one_extra_tick(self): self.case('zero_deadline')
     def test_unlock_failure_is_not_reported_as_success(self): self.case('leave')
