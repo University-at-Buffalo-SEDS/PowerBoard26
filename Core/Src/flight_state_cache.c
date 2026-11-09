@@ -50,6 +50,8 @@ flight_state_cache_apply_network_update(const SedsPacketView *packet)
     (void)packet;
     return SEDS_OK;
 }
+/* Acknowledged refusals; board_recovery_transport.c owns the definition. */
+__attribute__((weak)) volatile uint32_t g_reliable_refusal_count;
 
 #endif
 
@@ -140,16 +142,24 @@ static SedsResult persist_update(const SedsPacketView *packet, void *user)
     {
         /* Public SDK435 caches managed data before invoking this callback.
          * A malformed FSTATE must not poison future ordering/cache reads. */
-        if (packet != NULL && packet->ty == SEDS_DT_FLIGHT_STATE)
-            (void)clear_managed_cache();
+        if (packet == NULL || packet->ty != SEDS_DT_FLIGHT_STATE)
+            return SEDS_HANDLER_ERROR;
+        (void)clear_managed_cache();
         g_flight_state_cache_errors++;
-        return SEDS_HANDLER_ERROR;
+        /* A retry of the same packet can never succeed: acknowledge it. */
+        ++g_reliable_refusal_count;
+        return SEDS_OK;
     }
 
     if (!board_recovery_managed_update_allowed(packet)) {
+        /* The SDK runs this callback inside its receive and every relay, and
+         * an error withholds the receipt and the relay. A refused write (not
+         * the station, stale, store not ready) is deterministic: ignore it
+         * without applying so the sender stops retransmitting. */
         (void)clear_managed_cache();
         ++g_flight_state_cache_errors;
-        return SEDS_HANDLER_ERROR;
+        ++g_reliable_refusal_count;
+        return SEDS_OK;
     }
     const uint8_t state = packet->payload[0];
     if (!ota_stream_state_begin(state)) {
