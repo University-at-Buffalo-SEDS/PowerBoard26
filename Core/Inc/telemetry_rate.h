@@ -2,11 +2,11 @@
 #define PB_TELEMETRY_RATE_H
 #include <stdint.h>
 
-/* Board-local build setting; defaults to one sample every five seconds.
+/* Board-local build setting; defaults to one sample per second.
  * Override here or with -DPB_TELEMETRY_RATE_HZ=... and rebuild/reflash.
  * Fractional Hz is supported. This is not a network variable. */
 #ifndef PB_TELEMETRY_RATE_HZ
-#define PB_TELEMETRY_RATE_HZ 0.2
+#define PB_TELEMETRY_RATE_HZ 1.0
 #endif
 _Static_assert(PB_TELEMETRY_RATE_HZ >= 0.001 && PB_TELEMETRY_RATE_HZ <= 1000,
                "PB_TELEMETRY_RATE_HZ must be between 0.001 and 1000");

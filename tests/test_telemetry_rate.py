@@ -7,7 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 class TelemetryRateTests(unittest.TestCase):
     def test_configured_periods_and_tick_rounding(self):
-        for rate, period in [(None, 5000), (0.5, 2000), (4, 250), (1000, 1)]:
+        for rate, period in [(None, 1000), (0.5, 2000), (4, 250), (1000, 1)]:
             with self.subTest(rate=rate), tempfile.TemporaryDirectory() as tmp:
                 binary = pathlib.Path(tmp) / "rate"
                 code = '#include "telemetry_rate.h"\n#include <assert.h>\nint main(void) {'

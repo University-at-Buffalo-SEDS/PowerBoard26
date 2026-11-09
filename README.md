@@ -63,8 +63,8 @@ the simulator probes. After generation, run
 `python3 build.py test --full --release` before flashing or committing.
 
 Telemetry publication rate is a board-local preprocessor setting:
-`PB_TELEMETRY_RATE_HZ` in `Core/Inc/telemetry_rate.h`, default `0.2` Hz
-(one update every five seconds). Fractional rates are supported; rebuild and
+`PB_TELEMETRY_RATE_HZ` in `Core/Inc/telemetry_rate.h`, default `1` Hz
+(one update per second). Fractional rates are supported; rebuild and
 reflash after changing it. It is not a network variable. Actual throughput
 is limited by sensor acquisition, RTOS tick resolution and link capacity.
 
