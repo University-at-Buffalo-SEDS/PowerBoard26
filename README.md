@@ -14,6 +14,17 @@ OTA delta storage, and persistent-data storage are derived from
 ./build.py clean
 ```
 
+A factory flash (the default `--image factory`) also erases the board's
+LaunchCore persistent store, so records from an older flash layout cannot
+survive into the new image and block the store. It wipes the cached flight
+state, boot identity, recovery floor, commissioning record and the underglow
+setting. With `stm32prog-cli` and `st-flash` (1.8.0 or newer) only the store
+pages are erased. `dfu` cannot erase a page range, so it mass-erases the whole
+chip (including the OTA delta region) before writing the factory image. `st-
+util` and `stlink-gdbserver` cannot erase and refuse unless you pass `--keep-
+persist`. Pass `--keep-persist` to keep the store, or `--erase-persist` to erase
+it with an app-only flash.
+
 The normal flash command writes the combined `.factory.bin` at `0x08000000`.
 Use `./build.py flash --help` for the methods available on the host. OTA output
 uses `.seds`: it contains a delta when the board layout and previous packaged
