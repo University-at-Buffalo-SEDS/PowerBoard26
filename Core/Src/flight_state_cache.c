@@ -42,6 +42,15 @@ static uint32_t g_refresh_interval_ms = FLIGHT_STATE_UNSYNCED_RETRY_MS;
 static SedsRouter *g_cache_router;
 /* The Abort push the router refused; retried from the poll while Aborted. */
 static bool g_abort_push_retry;
+/* An accepted push can still be lost: the SDK cancels every queued status of
+ * an Ordered type when the group ahead of it ends undelivered, so a push
+ * queued behind a query reply whose ACKs were lost never reaches the air.
+ * While still Aborted the board re-pushes at these offsets from the edge.
+ * The station accepts pushes raise-only, so a delivered duplicate is inert. */
+static const uint16_t k_abort_repush_ms[] = {1000U, 2500U};
+#define ABORT_REPUSH_COUNT (sizeof k_abort_repush_ms / sizeof k_abort_repush_ms[0])
+static uint32_t g_abort_edge_ms;
+static uint8_t g_abort_repushes_owed;
 static SedsResult persist_update(const SedsPacketView *packet, void *user);
 /* SDK 4.3.6 caches inbound data before its callback. Retire only this
  * observation; keep read-only permissions, callbacks and advertisements. */
@@ -215,7 +224,11 @@ static SedsResult persist_update(const SedsPacketView *packet, void *user)
     g_network_value_seen = true;
     g_flight_state_cache_value = state;
     g_flight_state_cache_updates++;
-    if (aborting) g_abort_push_retry = board_recovery_push_abort_status(g_cache_router) != SEDS_OK;
+    if (aborting) {
+        g_abort_push_retry = board_recovery_push_abort_status(g_cache_router) != SEDS_OK;
+        g_abort_edge_ms = HAL_GetTick();
+        g_abort_repushes_owed = (uint8_t)ABORT_REPUSH_COUNT;
+    }
     if (!changed) { ota_stream_state_end(); return SEDS_OK; }
 
     if (!g_persist_ready ||
@@ -259,9 +272,17 @@ SedsResult flight_state_cache_init(SedsRouter *router)
 SedsResult flight_state_cache_poll(SedsRouter *router)
 {
     if (router == NULL) return SEDS_BAD_ARG;
+    if (g_flight_state_cache_value != FLIGHT_STATE_ABORTED) g_abort_repushes_owed = 0U;
     if (g_abort_push_retry)
         g_abort_push_retry = g_flight_state_cache_value == FLIGHT_STATE_ABORTED &&
             board_recovery_push_abort_status(router) != SEDS_OK;
+    if (g_abort_repushes_owed != 0U && !g_abort_push_retry) {
+        const uint8_t next = (uint8_t)(ABORT_REPUSH_COUNT - g_abort_repushes_owed);
+        /* A refused re-push stays owed and is tried again on the next poll. */
+        if ((uint32_t)(HAL_GetTick() - g_abort_edge_ms) >= k_abort_repush_ms[next] &&
+            board_recovery_push_abort_status(router) == SEDS_OK)
+            --g_abort_repushes_owed;
+    }
     if (g_network_value_seen) return SEDS_OK;
     if (g_telemetry_discovery_seen == 0U) return SEDS_OK;
     const uint32_t now_ms = HAL_GetTick();
