@@ -55,6 +55,9 @@ void board_health_poll(SedsRouter *router)
     SedsTimeSyncStatus ts;
     if (seds_router_get_timesync_status(router, &ts) == SEDS_OK) {
       words[6] |= (uint32_t)ts.health_byte << 24U;
+      /* Word 22 "SY": stratum (1 = the GS, 2 = RF re-serving it over CAN)
+       * in bits 8..15 beside the same health byte, as on the FC. */
+      words[22] = (0x5359U << 16U) | ((uint32_t)ts.stratum << 8U) | ts.health_byte;
     }
   }
   /* Static UInt32 schema + exact little-endian bytes: use the existing
