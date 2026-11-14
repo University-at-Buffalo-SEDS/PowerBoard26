@@ -48,20 +48,22 @@ static bool g_abort_push_retry;
  * an Ordered type when the group ahead of it ends undelivered, and a push gets
  * only the routine 3 retries (4 tries over 1.2 s, telemetry.c) while the
  * station's Abort window is 4.8 s; T30 lost all 4 copies at 30% loss. While
- * still Aborted the board re-pushes at these offsets from the edge, the last
- * one's tries running past 5 s, until a status of this board is acknowledged
- * (any status sent after the edge carries the latch). The station accepts
- * pushes raise-only, so a delivered duplicate is inert. */
-static const uint16_t k_abort_repush_ms[] = {1000U, 2500U, 4000U};
+ * still Aborted the board pushes again, like the FC, each time a push is gone
+ * with every try lost (or was never seen awaiting its receipt 1 s after it was
+ * queued), until a status of this board is acknowledged (any status sent
+ * after the edge carries the latch) or 5 s after the edge. The station
+ * accepts pushes raise-only, so a delivered duplicate is inert. */
+#define ABORT_PUSH_WINDOW_MS 5000U
+#define ABORT_PUSH_UNSEEN_MS 1000U
 /* The routine end-to-end retry budget (telemetry.c reliable_max_retries). */
 #define ABORT_STATUS_MAX_RETRIES 3U
 /* A status of this board seen awaiting its receipt since the last push, and
  * the highest retry count seen. */
 static bool g_abort_status_seen;
 static uint32_t g_abort_status_retries;
-#define ABORT_REPUSH_COUNT (sizeof k_abort_repush_ms / sizeof k_abort_repush_ms[0])
-static uint32_t g_abort_edge_ms;
-static uint8_t g_abort_repushes_owed;
+static uint32_t g_abort_edge_ms, g_abort_push_ms;
+/* Pushes are still owed for this edge. */
+static bool g_abort_push_open;
 static SedsResult persist_update(const SedsPacketView *packet, void *user);
 /* SDK 4.3.6 caches inbound data before its callback. Retire only this
  * observation; keep read-only permissions, callbacks and advertisements. */
@@ -323,8 +325,8 @@ static SedsResult persist_update(const SedsPacketView *packet, void *user)
     g_flight_state_cache_updates++;
     if (aborting) {
         g_abort_push_retry = board_recovery_push_abort_status(g_cache_router) != SEDS_OK;
-        g_abort_edge_ms = HAL_GetTick();
-        g_abort_repushes_owed = (uint8_t)ABORT_REPUSH_COUNT;
+        g_abort_edge_ms = g_abort_push_ms = HAL_GetTick();
+        g_abort_push_open = true;
         g_abort_status_seen = false; g_abort_status_retries = 0U;
     }
     /* Recorded once fully taken: a failed persist below is retried by the
@@ -373,24 +375,25 @@ SedsResult flight_state_cache_init(SedsRouter *router)
 SedsResult flight_state_cache_poll(SedsRouter *router)
 {
     if (router == NULL) return SEDS_BAD_ARG;
-    if (g_flight_state_cache_value != FLIGHT_STATE_ABORTED) g_abort_repushes_owed = 0U;
+    if (g_flight_state_cache_value != FLIGHT_STATE_ABORTED) g_abort_push_open = false;
     if (g_abort_push_retry)
         g_abort_push_retry = g_flight_state_cache_value == FLIGHT_STATE_ABORTED &&
             board_recovery_push_abort_status(router) != SEDS_OK;
-    if (g_abort_repushes_owed != 0U && !g_abort_push_retry) {
-        /* Seen awaiting its receipt, then gone before its last try ran out:
-         * the station acknowledged it and has the Abort. */
-        if (board_recovery_status_pending(router, &g_abort_status_retries)) g_abort_status_seen = true;
-        else if (g_abort_status_seen && g_abort_status_retries < ABORT_STATUS_MAX_RETRIES)
-            g_abort_repushes_owed = 0U;
-    }
-    if (g_abort_repushes_owed != 0U && !g_abort_push_retry) {
-        const uint8_t next = (uint8_t)(ABORT_REPUSH_COUNT - g_abort_repushes_owed);
-        /* A refused re-push stays owed and is tried again on the next poll. */
-        if ((uint32_t)(HAL_GetTick() - g_abort_edge_ms) >= k_abort_repush_ms[next] &&
-            board_recovery_push_abort_status(router) == SEDS_OK)
-        {
-            --g_abort_repushes_owed;
+    if (g_abort_push_open && !g_abort_push_retry) {
+        const uint32_t now_ms = HAL_GetTick();
+        if ((uint32_t)(now_ms - g_abort_edge_ms) >= ABORT_PUSH_WINDOW_MS) {
+            g_abort_push_open = false;
+        } else if (board_recovery_status_pending(router, &g_abort_status_retries)) {
+            g_abort_status_seen = true;
+        } else if (!g_abort_status_seen && (uint32_t)(now_ms - g_abort_push_ms) < ABORT_PUSH_UNSEEN_MS) {
+            /* Not dispatched yet. */
+        } else if (g_abort_status_seen && g_abort_status_retries < ABORT_STATUS_MAX_RETRIES) {
+            /* Gone before its last try ran out: the station acknowledged it. */
+            g_abort_push_open = false;
+        } else if (board_recovery_push_abort_status(router) == SEDS_OK) {
+            /* Every try lost (or never seen): push again. A refused push
+             * stays owed and is tried again on the next poll. */
+            g_abort_push_ms = now_ms;
             g_abort_status_seen = false; g_abort_status_retries = 0U;
         }
     }
