@@ -8,6 +8,9 @@ void board_recovery_transport_set_router(SedsRouter *router);
 extern volatile uint32_t g_reliable_refusal_count;
 /* Caller holds the router: one nonce-0 Abort-latched BOARD_STATE_STATUS. */
 SedsResult board_recovery_push_abort_status(SedsRouter *router);
+/* True while a BOARD_STATE_STATUS of this board awaits its receipt;
+ * *retries is the highest retry count seen among them. */
+bool board_recovery_status_pending(SedsRouter *router, uint32_t *retries);
 SedsResult board_recovery_handle(SedsRouter *router,const SedsPacketView *packet,
                                 uint32_t local_endpoint,uint32_t uptime_ms);
 /* Application replay floor; SDK stays generic. No current-time/RNG claim. */

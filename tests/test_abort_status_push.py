@@ -74,27 +74,60 @@ int main(void){
  group_cancel();                    /* the head's group ends: the push is gone */
  enqueue(QUERY_REPLY);              /* a later reply survives (state 15) */
  drain();assert(delivered_pushes==0);
- /* Bounded re-push while Aborted: about +1 s and +2.5 s after the edge. */
+ /* Bounded re-push while Aborted: about +1 s, +2.5 s and +4 s after the edge. */
  run_polls(&router,1010,1990);assert(pushes==1);
  run_polls(&router,2000,2000);assert(pushes==2&&delivered_pushes==1);
  run_polls(&router,2010,3490);assert(pushes==2);
  run_polls(&router,3500,3500);assert(pushes==3&&delivered_pushes==2);
- run_polls(&router,3510,20000);assert(pushes==3);  /* never more than two re-pushes */
- assert(update(15)==0&&pushes==3);  /* a repeated Aborted write re-arms nothing */
- run_polls(&router,20010,30000);assert(pushes==3);
+ run_polls(&router,3510,4990);assert(pushes==3);
+ run_polls(&router,5000,5000);assert(pushes==4&&delivered_pushes==3);
+ run_polls(&router,5010,20000);assert(pushes==4);  /* never more than three re-pushes */
+ assert(update(15)==0&&pushes==4);  /* a repeated Aborted write re-arms nothing */
+ run_polls(&router,20010,30000);assert(pushes==4);
  /* Leaving Aborted cancels the re-pushes that are still owed. */
- assert(update(1)==0);tick=40000;assert(update(15)==0&&pushes==4);
+ assert(update(1)==0);tick=40000;assert(update(15)==0&&pushes==5);
  tick=40500;assert(update(0)==0);
- run_polls(&router,40510,50000);assert(pushes==4);
+ run_polls(&router,40510,50000);assert(pushes==5);
  /* A new edge re-arms the schedule from its own time. */
- tick=60000;assert(update(15)==0&&pushes==5);
- run_polls(&router,60010,60990);assert(pushes==5);
- run_polls(&router,61000,61000);assert(pushes==6);
- run_polls(&router,61010,62500);assert(pushes==7);
+ tick=60000;assert(update(15)==0&&pushes==6);
+ run_polls(&router,60010,60990);assert(pushes==6);
+ run_polls(&router,61000,61000);assert(pushes==7);
+ run_polls(&router,61010,62500);assert(pushes==8);
  /* A reset to Startup cancels the owed re-push too. */
- assert(update(1)==0);tick=70000;assert(update(15)==0&&pushes==8);
+ assert(update(1)==0);tick=70000;assert(update(15)==0&&pushes==9);
  assert(flight_state_cache_reset_startup()==0);
- run_polls(&router,70010,80000);assert(pushes==8);
+ run_polls(&router,70010,80000);assert(pushes==9);
+ return 0;
+}
+'''
+
+LOST_CASES = r'''
+/* The SDK's pending rows as the poll sees them: one status of this board
+ * awaiting its receipt (st_pending) at retry count st_retries. */
+static bool st_pending;static uint32_t st_retries;static unsigned pushes;
+SedsResult board_recovery_push_abort_status(SedsRouter *r){assert(r);++pushes;return SEDS_OK;}
+bool board_recovery_status_pending(SedsRouter *r,uint32_t *retries){(void)r;if(st_pending&&st_retries>*retries)*retries=st_retries;return st_pending;}
+static void polls(SedsRouter*r,unsigned from,unsigned to){for(tick=from;tick<=to;tick+=10)assert(flight_state_cache_poll(r)==0);}
+int main(void){
+ SedsRouter router=0;
+ assert(flight_state_cache_init(&router)==0);
+ /* A: the edge push's 4 copies are all lost (T30), so is the +1 s copy; the
+  * +2.5 s copy is acknowledged on its first try: no +4 s push, nothing after. */
+ tick=1000;assert(update(4)==0);assert(update(15)==0&&pushes==1);
+ st_pending=true;
+ st_retries=0;polls(&router,1010,1390);st_retries=1;polls(&router,1400,1790);st_retries=2;polls(&router,1800,1990);
+ polls(&router,2000,2000);assert(pushes==2);   /* +1 s */
+ st_retries=3;polls(&router,2010,3490);        /* every try of both copies lost */
+ polls(&router,3500,3500);assert(pushes==3);   /* +2.5 s */
+ st_retries=0;polls(&router,3510,3590);st_pending=false;polls(&router,3600,12000);
+ assert(pushes==3);
+ /* B: never acknowledged: pushes at the edge, +1, +2.5 and +4 s (its tries
+  * run past the station's 4.8 s Abort window), then none. */
+ assert(update(1)==0);tick=20000;assert(update(15)==0&&pushes==4);
+ st_pending=true;st_retries=3;
+ polls(&router,20010,23990);assert(pushes==6);
+ polls(&router,24000,24000);assert(pushes==7);   /* +4 s: its tries run to 25.2 s */
+ polls(&router,24010,40000);assert(pushes==7);
  return 0;
 }
 '''
@@ -162,6 +195,13 @@ class AbortStatusPushTests(unittest.TestCase):
     def test_only_an_applied_change_to_aborted_pushes_once(self):
         prelude = RESET_HARNESS[:RESET_HARNESS.index('int main(int argc,char **argv){')]
         _build_and_run(prelude + CACHE_CASES, RESET_HEADERS,
+                       ('Core/Src/flight_state_cache.c', 'Core/Src/board_recovery_query.c'))
+
+    def test_an_unacknowledged_abort_push_covers_the_station_abort_window(self):
+        # T30: all 4 copies of the push lost at 30% loss. Re-pushes until a
+        # status is acknowledged, the last one's tries running past 4.8 s.
+        prelude = RESET_HARNESS[:RESET_HARNESS.index('int main(int argc,char **argv){')]
+        _build_and_run(prelude + LOST_CASES, RESET_HEADERS,
                        ('Core/Src/flight_state_cache.c', 'Core/Src/board_recovery_query.c'))
 
     def test_push_lost_to_a_group_cancel_is_re_pushed_twice(self):

@@ -44,11 +44,20 @@ static SedsRouter *g_cache_router;
 /* The Abort push the router refused; retried from the poll while Aborted. */
 static bool g_abort_push_retry;
 /* An accepted push can still be lost: the SDK cancels every queued status of
- * an Ordered type when the group ahead of it ends undelivered, so a push
- * queued behind a query reply whose ACKs were lost never reaches the air.
- * While still Aborted the board re-pushes at these offsets from the edge.
- * The station accepts pushes raise-only, so a delivered duplicate is inert. */
-static const uint16_t k_abort_repush_ms[] = {1000U, 2500U};
+ * an Ordered type when the group ahead of it ends undelivered, and a push gets
+ * only the routine 3 retries (4 tries over 1.2 s, telemetry.c) while the
+ * station's Abort window is 4.8 s; T30 lost all 4 copies at 30% loss. While
+ * still Aborted the board re-pushes at these offsets from the edge, the last
+ * one's tries running past 5 s, until a status of this board is acknowledged
+ * (any status sent after the edge carries the latch). The station accepts
+ * pushes raise-only, so a delivered duplicate is inert. */
+static const uint16_t k_abort_repush_ms[] = {1000U, 2500U, 4000U};
+/* The routine end-to-end retry budget (telemetry.c reliable_max_retries). */
+#define ABORT_STATUS_MAX_RETRIES 3U
+/* A status of this board seen awaiting its receipt since the last push, and
+ * the highest retry count seen. */
+static bool g_abort_status_seen;
+static uint32_t g_abort_status_retries;
 #define ABORT_REPUSH_COUNT (sizeof k_abort_repush_ms / sizeof k_abort_repush_ms[0])
 static uint32_t g_abort_edge_ms;
 static uint8_t g_abort_repushes_owed;
@@ -76,6 +85,14 @@ board_recovery_push_abort_status(SedsRouter *router)
 {
     (void)router;
     return SEDS_OK;
+}
+/* board_recovery_transport.c owns the definition: true while a status of this
+ * board awaits its receipt; *retries is the highest retry count seen. */
+__attribute__((weak)) bool
+board_recovery_status_pending(SedsRouter *router, uint32_t *retries)
+{
+    (void)router; (void)retries;
+    return false;
 }
 /* Nonzero for a well-formed report that is not a station write (the FC's
  * FLIGHT_STATE). board_recovery_transport.c owns the definition; isolated
@@ -296,6 +313,7 @@ static SedsResult persist_update(const SedsPacketView *packet, void *user)
         g_abort_push_retry = board_recovery_push_abort_status(g_cache_router) != SEDS_OK;
         g_abort_edge_ms = HAL_GetTick();
         g_abort_repushes_owed = (uint8_t)ABORT_REPUSH_COUNT;
+        g_abort_status_seen = false; g_abort_status_retries = 0U;
     }
     /* Recorded once fully taken: a failed persist below is retried by the
      * station's identical re-send, which must re-enter here. */
@@ -348,11 +366,21 @@ SedsResult flight_state_cache_poll(SedsRouter *router)
         g_abort_push_retry = g_flight_state_cache_value == FLIGHT_STATE_ABORTED &&
             board_recovery_push_abort_status(router) != SEDS_OK;
     if (g_abort_repushes_owed != 0U && !g_abort_push_retry) {
+        /* Seen awaiting its receipt, then gone before its last try ran out:
+         * the station acknowledged it and has the Abort. */
+        if (board_recovery_status_pending(router, &g_abort_status_retries)) g_abort_status_seen = true;
+        else if (g_abort_status_seen && g_abort_status_retries < ABORT_STATUS_MAX_RETRIES)
+            g_abort_repushes_owed = 0U;
+    }
+    if (g_abort_repushes_owed != 0U && !g_abort_push_retry) {
         const uint8_t next = (uint8_t)(ABORT_REPUSH_COUNT - g_abort_repushes_owed);
         /* A refused re-push stays owed and is tried again on the next poll. */
         if ((uint32_t)(HAL_GetTick() - g_abort_edge_ms) >= k_abort_repush_ms[next] &&
             board_recovery_push_abort_status(router) == SEDS_OK)
+        {
             --g_abort_repushes_owed;
+            g_abort_status_seen = false; g_abort_status_retries = 0U;
+        }
     }
     if (g_network_value_seen) return SEDS_OK;
     if (g_telemetry_discovery_seen == 0U) return SEDS_OK;

@@ -127,6 +127,18 @@ SedsResult board_recovery_push_abort_status(SedsRouter*router){
  return commissioning_status(router,BOARD_RECOVERY_RESULT_OK,&request,
   (uint32_t)(((uint64_t)tx_time_get()*1000U)/TX_TIMER_TICKS_PER_SECOND),BOARD_RECOVERY_ABORT_LATCHED);
 }
+bool board_recovery_status_pending(SedsRouter *router, uint32_t *retries)
+{
+ SedsReliablePendingRow rows[4];
+ bool found=false;
+ for(size_t first=0U;;first+=4U){
+  const int32_t total=seds_router_copy_reliable_pending(router,first,rows,4U);
+  if(total<0)return true; /* unknown: keep waiting */
+  for(size_t i=0U;i<4U&&first+i<(size_t)total;++i)
+   if(rows[i].data_type==(uint32_t)SEDS_DT_BOARD_STATE_STATUS){found=true;if(rows[i].retries>*retries)*retries=rows[i].retries;}
+  if(first+4U>=(size_t)total)return found;
+ }
+}
 SedsResult board_recovery_handle(SedsRouter *router,const SedsPacketView *packet,
                                 uint32_t local_endpoint,uint32_t uptime_ms)
 {
