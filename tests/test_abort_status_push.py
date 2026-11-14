@@ -32,17 +32,18 @@ int main(void){
  assert(flight_state_cache_init(&router)==0&&flight_state_cache_value()==6);
  assert(update(15)==0&&flight_state_cache_value()==15&&pushes==1&&pushed_router==&router);
  assert(update(15)==0&&pushes==1);           /* a repeated Aborted write pushes none */
- assert(update(1)==0&&pushes==1);            /* other states push none */
+ assert(update(1)==0&&flight_state_cache_value()==15&&pushes==1); /* held while Aborted: pushes none */
+ assert(flight_state_cache_reset_startup()==0&&update(1)==0&&pushes==1); /* Reset; other states push none */
  assert(update(15)==0&&pushes==2);           /* a new change to Aborted pushes again */
  /* A refused push is retried from the poll, once accepted never again. */
  SedsRouter poll_router=1;
- assert(update(1)==0);refuse=1;assert(update(15)==0&&pushes==3);
+ assert(flight_state_cache_reset_startup()==0);refuse=1;assert(update(15)==0&&pushes==3);
  assert(flight_state_cache_poll(&poll_router)==0&&pushes==4&&pushed_router==&poll_router);
  refuse=0;assert(flight_state_cache_poll(&poll_router)==0&&pushes==5);
  assert(flight_state_cache_poll(&poll_router)==0&&pushes==5);
  /* No retry once the state has left Aborted. */
- assert(update(1)==0);refuse=1;assert(update(15)==0&&pushes==6);refuse=0;
- assert(update(1)==0&&flight_state_cache_poll(&poll_router)==0&&pushes==6);
+ assert(flight_state_cache_reset_startup()==0);refuse=1;assert(update(15)==0&&pushes==6);refuse=0;
+ assert(flight_state_cache_reset_startup()==0&&flight_state_cache_poll(&poll_router)==0&&pushes==6);
  return 0;
 }
 '''
@@ -84,9 +85,9 @@ int main(void){
  run_polls(&router,5010,20000);assert(pushes==4);  /* never more than three re-pushes */
  assert(update(15)==0&&pushes==4);  /* a repeated Aborted write re-arms nothing */
  run_polls(&router,20010,30000);assert(pushes==4);
- /* Leaving Aborted cancels the re-pushes that are still owed. */
- assert(update(1)==0);tick=40000;assert(update(15)==0&&pushes==5);
- tick=40500;assert(update(0)==0);
+ /* Leaving Aborted (only the recovery Reset does) cancels the re-pushes still owed. */
+ assert(flight_state_cache_reset_startup()==0);tick=40000;assert(update(15)==0&&pushes==5);
+ tick=40500;assert(flight_state_cache_reset_startup()==0);
  run_polls(&router,40510,50000);assert(pushes==5);
  /* A new edge re-arms the schedule from its own time. */
  tick=60000;assert(update(15)==0&&pushes==6);
@@ -94,7 +95,7 @@ int main(void){
  run_polls(&router,61000,61000);assert(pushes==7);
  run_polls(&router,61010,62500);assert(pushes==8);
  /* A reset to Startup cancels the owed re-push too. */
- assert(update(1)==0);tick=70000;assert(update(15)==0&&pushes==9);
+ assert(flight_state_cache_reset_startup()==0);tick=70000;assert(update(15)==0&&pushes==9);
  assert(flight_state_cache_reset_startup()==0);
  run_polls(&router,70010,80000);assert(pushes==9);
  return 0;
@@ -123,7 +124,7 @@ int main(void){
  assert(pushes==3);
  /* B: never acknowledged: pushes at the edge, +1, +2.5 and +4 s (its tries
   * run past the station's 4.8 s Abort window), then none. */
- assert(update(1)==0);tick=20000;assert(update(15)==0&&pushes==4);
+ assert(flight_state_cache_reset_startup()==0);tick=20000;assert(update(15)==0&&pushes==4);
  st_pending=true;st_retries=3;
  polls(&router,20010,23990);assert(pushes==6);
  polls(&router,24000,24000);assert(pushes==7);   /* +4 s: its tries run to 25.2 s */
