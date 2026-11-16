@@ -613,6 +613,17 @@ static SedsResult Board_Recovery_handler(const SedsPacketView *packet, void *use
       (uint32_t)(((uint64_t)tx_time_get() * 1000U) / TX_TIMER_TICKS_PER_SECOND));
 }
 
+/* GS heartbeats keep the station clock current, so it follows a GS clock
+ * step within seconds (recovery queries alone are rare). Other boards'
+ * heartbeats are ignored by the station clock. */
+static SedsResult Heartbeat_handler(const SedsPacketView *packet, void *user)
+{
+  (void)sim_probe_heartbeat_handler(packet, user);
+  if (packet != NULL && packet->ty == (uint32_t)SEDS_DT_HEARTBEAT)
+    board_recovery_observe_station_time(g_router.r, packet);
+  return SEDS_OK;
+}
+
 #ifdef TELEMETRY_ENABLED
 /* Start the optional services named in `wanted`; returns the still-failed
  * subset. Each initializer tolerates being repeated after a failure. */
@@ -663,12 +674,10 @@ static SedsResult init_telemetry_router_locked(void) {
           .packed_handler = NULL,
           .user = NULL,
       },
-#if SEDS_FIRMWARE_SIM_TEST
       {.endpoint = SEDS_EP_HEART_BEAT,
-       .packet_handler = sim_probe_heartbeat_handler,
+       .packet_handler = Heartbeat_handler,
        .packed_handler = NULL,
        .user = NULL},
-#endif
       // {.endpoint = SEDS_EP_SD_CARD,
       //  .packet_handler = telemetry_sd_card_packet_handler,
       //  .packed_handler = NULL,
