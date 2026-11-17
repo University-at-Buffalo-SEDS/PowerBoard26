@@ -42,7 +42,6 @@ bool seds_router_sender_matches_hostname(const SedsRouter*r,const char*s,size_t 
 bool seds_router_sender_matches_station(const SedsRouter*r,const char*s,size_t n,const char*name,size_t len){return seds_router_sender_matches_hostname(r,s,n,name,len);}
 SedsResult seds_router_get_network_time_ms(SedsRouter*r,uint64_t*out){sdk_unlocked();assert(r);*out=clock_ms;return SEDS_OK;}
 /* No reliable delivery is pending in this fixture. */
-int32_t seds_router_copy_reliable_pending(SedsRouter*r,size_t first,SedsReliablePendingRow*rows,size_t capacity){(void)r;(void)first;(void)rows;(void)capacity;return 0;}
 SedsResult seds_router_log_queue_typed(SedsRouter*r,SedsDataType type,const void*p,size_t count,size_t width,SedsElemKind kind){sdk_unlocked();assert(r&&type==201&&count==40&&width==1&&kind==SEDS_EK_UNSIGNED);memcpy(response,p,40);assert((response[3]&32U)==EXPECTED_CAP);app_replies++;return SEDS_OK;}
 /* No older status is pending here: the Abort push's supersede pass finds none. */
 int32_t seds_router_copy_reliable_pending(SedsRouter*r,size_t first,SedsReliablePendingRow*rows,size_t capacity){sdk_unlocked();assert(r&&rows&&capacity);(void)first;memset(rows,0,capacity*sizeof *rows);return 0;}
