@@ -217,6 +217,9 @@ volatile uint32_t g_telemetry_service_faults;
 volatile int32_t g_telemetry_service_last_error;
 static uint32_t g_telemetry_service_retry_ms;
 void board_recovery_transport_set_router(SedsRouter*r){assert(r);}
+#include "network_stamp.h"
+/* The cached recovery floor: the last Reset was stamped in epoch 4. */
+static uint8_t board_recovery_floor_cached_cutoff(uint64_t*c){*c=network_stamp_key(4,123456);return 1U;}
 #define telemetry_radio_rx inert_radio_rx
 static __attribute__((unused)) void inert_radio_rx(const uint8_t*p,size_t n,void*u){(void)p;(void)n;(void)u;}
 #define Board_Recovery_handler inert
@@ -329,6 +332,8 @@ int main(int argc,char**argv){
   for(unsigned i=0;i<20;i++)assert(init_telemetry_router()==SEDS_IO&&allocations==count&&frees==freed&&writes==w);
   clock_ms+=499;assert(init_telemetry_router()==SEDS_IO&&allocations==count);
   fail_stage=0;fail_enable=fail_callback=false;clock_ms++;assert(init_telemetry_router()==SEDS_OK&&g_router.created==1&&g_cache_router==g_router.r);
+  /* The published router's time-base epoch was raised to the floor's. */
+  {SedsTimeSyncStatus st;assert(seds_router_get_timesync_status(g_router.r,&st)==SEDS_OK&&st.epoch==4U);}
   assert(allocations==count+1&&frees==freed&&g_router_retry_after_ms==0&&g_telemetry_init_error_code==TELEMETRY_INIT_OK);
  }
  for(unsigned i=0;i<allocations;i++)if(allocations_list[i]==g_router.r)__real_seds_router_free(allocations_list[i]);

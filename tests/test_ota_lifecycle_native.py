@@ -8,7 +8,7 @@ import unittest
 ROOT=Path(__file__).resolve().parents[1]
 # The station clock in the authority slice reads the board tick; it stays
 # idle here (no GS time is observed), so freshness equals the network clock.
-STATION_TICK='#include <stdatomic.h>\ntypedef unsigned long ULONG;\n#define TX_TIMER_TICKS_PER_SECOND 1000\nstatic ULONG tx_time_get(void){return 0;}\n'
+STATION_TICK='#include "network_stamp.h"\n'
 CASES=['healthy_idle', 'manual_reset', 'finish_launch', 'restored_launch', 'unsafe_phase', 'unknown_identity', 'exhausted_identity', 'wrong_principal', 'malformed', 'wrong_tuple', 'wrong_address', 'wrong_peer_stream', 'reentrant_begin', 'reentrant_write', 'active_abort', 'bad_offset', 'reentrant_finish', 'launch_idle', 'stop', 'corrupt_health', 'corrupt_floor', 'epoch_changed', 'identity_changed', 'graceful_close', 'stream_reset', 'inactive_abort', 'new_accept', 'clock_rollback', 'reentrant_confirm', 'failed_leave', 'verified_recovery', 'no_clear_by_apply', 'busy_reset', 'closed_reset', 'unhealthy_reset', 'unhealthy_abort', 'unhealthy_close', 'busy_update_reset', 'wrong_cancel_tuple', 'same_session_begin', 'same_session_begin_failure']
 class OtaLifecycleTests(unittest.TestCase):
  def test_actual_owner_lifecycle(self):
