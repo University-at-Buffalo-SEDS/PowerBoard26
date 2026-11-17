@@ -63,7 +63,7 @@ static void station_store(uint64_t utc){
  station_utc=utc;station_tick=tx_time_get();
  atomic_store_explicit(&station_seq,seq+2U,memory_order_release);
 }
-/* A GS clock step back: the first primary heartbeat stamped more than
+/* A GS clock step back: the first primary packet stamped more than
  * BOARD_RECOVERY_STATION_REANCHOR_MS behind the estimate is held; a second
  * one that agrees with it (its stamp advanced by the elapsed board time,
  * within the same bound) re-anchors the estimate. A single late or replayed
@@ -73,7 +73,7 @@ void board_recovery_observe_station_time(SedsRouter*router,const SedsPacketView*
  if(!router||!authorized_primary(router,packet)||packet->timestamp==0U||packet->timestamp==UINT64_MAX)return;
  const uint64_t estimate=station_estimate(),stamp=packet->timestamp;
  if(stamp>estimate){station_store(stamp);back_held=0U;return;}
- if(packet->ty!=SEDS_DT_HEARTBEAT||estimate-stamp<=BOARD_RECOVERY_STATION_REANCHOR_MS)return;
+ if(estimate-stamp<=BOARD_RECOVERY_STATION_REANCHOR_MS)return;
  const ULONG now=tx_time_get();
  const uint64_t elapsed=((uint64_t)(ULONG)(now-back_tick)*1000U)/TX_TIMER_TICKS_PER_SECOND;
  if(back_held&&elapsed<=10000U&&stamp>back_utc){
