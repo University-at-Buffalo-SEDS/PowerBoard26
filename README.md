@@ -1,7 +1,7 @@
 # PowerBoard26 firmware
 
 PowerBoard26 targets the STM32G491 and participates in the avionics SEDSNet
-CAN-FD network. It uses rolling SEDSNet `main` and SEDS LaunchCore v1.0.0, fetched by
+CAN-FD network. It uses rolling SEDSNet `dev` and SEDS LaunchCore v1.0.0, fetched by
 CMake without submodules. Linker scripts, bootloader placement, firmware slot,
 OTA delta storage, and persistent-data storage are derived from
 `Bootloader/board_config.h`.
@@ -93,9 +93,9 @@ Use `--no-watchdog` only for a diagnostic build.
 
 ## SEDSnet build configuration
 
-Use `python3 build.py build --release --sedsnet-ref dev` to build the current
-SEDSnet `dev` commit. The same option is accepted by `test` and `flash`.
-Normal builds continue to select `main`. Each branch has its own source cache;
+Use `python3 build.py build --release --sedsnet-ref main` to build the current
+SEDSnet `main` commit. The same option is accepted by `test` and `flash`.
+Normal builds select `dev`. Each branch has its own source cache;
 when the network is unavailable the last usable on-disk source is retained.
 The selected revision is printed during configure. An explicit CMake source
 override remains local and is never fetched or reset.
@@ -106,7 +106,7 @@ override remains local and is never fetched or reset.
 python3 build.py build --release
 ```
 
-This selects the latest compatible SEDSnet `main` commit and initializes a 4096-byte,
+This selects the latest compatible SEDSnet `dev` commit and initializes a 4096-byte,
 32-handle arena before the router starts. It uses the existing allocator
 pool and leaves ThreadX scheduling unchanged. Compression stays disabled.
 Use `--packet-store heap` to disable the arena, including in a previously enabled build cache.
