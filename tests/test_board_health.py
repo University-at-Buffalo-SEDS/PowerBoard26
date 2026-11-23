@@ -23,6 +23,8 @@ uint64_t uptime;
 unsigned calls,lock_depth,mask,refuse;
 uint32_t captured[24];
 volatile uint32_t g_watchdog_reset_flags=123,g_watchdog_missing_mask=9,g_telemetry_service_faults=0;
+#include "power_monitor_retry.h"
+volatile uint32_t g_power_ltc2990_present=2,g_power_ltc2990_retry_delay_ms=8000,g_power_ltc2990_retries=3;
 /* Word 6 carries stalled tasks, not the pending-since-feed mask above. */
 uint32_t board_watchdog_overdue_mask(void){assert(mask);return 5;}
 volatile uint32_t g_telemetry_tlsf_live_bytes=100,g_telemetry_tlsf_peak_bytes=200,g_telemetry_tlsf_region_bytes=4096,g_telemetry_tlsf_failures=7;
@@ -67,7 +69,8 @@ int main(void){
 #else
  assert(!(captured[1]&1)&&!captured[7]&&!captured[8]&&!captured[9]&&!captured[10]);
 #endif
- if(captured[1]&16)assert(captured[16]==0xf00d1234U); /* no float rounding */
+ /* Power monitors: voltage absent (bit 0 clear), current answering. */
+ assert(captured[16]==0x3143544CU&&captured[17]==2U&&captured[18]==8000U&&captured[19]==3U);
  uptime=(UINT64_C(1)<<42)+20000;board_health_poll(&router);
  assert(calls==3&&captured[2]==20000&&captured[3]==1024);
  uptime=(UINT64_C(1)<<42)+UINT32_MAX-2U;board_health_poll(&router);assert(calls==4);
@@ -94,7 +97,7 @@ int main(void){
   with tempfile.TemporaryDirectory() as tmp:
    for label,flags in [('tlsf',['-DTELEMETRY_ENABLED','-DTELEMETRY_USE_TLSF']),('threadx',['-DTELEMETRY_ENABLED']),('disabled',[])]:
     binary=Path(tmp)/label
-    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror',*flags,'-x','c','-','-o',str(binary)],input=harness,text=True,check=True)
+    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-I'+str(ROOT/'Core/Inc'),*flags,'-x','c','-','-o',str(binary)],input=harness,text=True,check=True)
     subprocess.run([str(binary)],check=True)
  def test_schema_and_header_use_matching_canonical_u32_identity(self):
   definitions=json.loads((ROOT/'config/sedsnet.json').read_text())

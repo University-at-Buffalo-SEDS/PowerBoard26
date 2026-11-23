@@ -318,6 +318,17 @@ These were recorded in the audit. G2 was fixed in board-bugfix-20261123; the res
 - **G9 Acquisition period drifts.** The sensor loop sleeps a full period and
   then acquires (`sensor_thread.c:72-77`), so the sample interval is
   1000 ms plus acquisition time, not a fixed 1 Hz grid.
-- **G10 First LTC2990 blocks the second.** If the voltage monitor never
-  answers, the init loop at `sensor_thread.c:54-60` retries forever and the
-  current monitor is never initialised, so neither stream is published.
+- **G10 Fixed (board-bugfix-20261123): the first LTC2990 blocked the second.**
+  `sensor_thread.c` now tries each monitor once at startup and continues; a
+  monitor that does not answer is retried in the acquisition loop on its own
+  backoff (1, 2, 4, 8, 16 s, then every 32 s, `Core/Inc/power_monitor_retry.h`),
+  and each answering monitor is sampled regardless of the other. `BOARD_HEALTH`
+  words 16..19 (tag "LTC1", same layout as the gateway board) report the
+  answering mask (bit 0 voltage, bit 1 current; clear = absent, not trusted),
+  the longest retry delay in ms (0 healthy) and init retries since boot.
+  `tests/test_power_monitor_startup.py` covers ten minutes with the voltage
+  monitor absent (current sampled every period, 23 voltage probes instead of a
+  blocking loop), pick-up when it appears, and the reverse case across the
+  32-bit ms wrap. Original finding: if the voltage monitor never answered, the
+  init loop at `sensor_thread.c:54-60` retried forever and the current monitor
+  was never initialised, so neither stream was published.

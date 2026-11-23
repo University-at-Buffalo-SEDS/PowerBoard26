@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include "can_bus.h"
 #include "telemetry_rate.h"
+#include "power_monitor_retry.h"
 
 TX_THREAD sensor_thread;
 
@@ -41,6 +42,43 @@ typedef struct
 /* Thread entry receives this pointer; storage must outlive create_sensor_thread(). */
 static ltc_handles_t sensor_ltc_handles;
 
+/* Power-monitor health for BOARD_HEALTH words 16..19 (power_monitor_retry.h). */
+volatile uint32_t g_power_ltc2990_present;
+volatile uint32_t g_power_ltc2990_retry_delay_ms;
+volatile uint32_t g_power_ltc2990_retries;
+static power_monitor_retry_t sensor_voltage_retry, sensor_current_retry;
+
+static void sensor_try_init(power_monitor_retry_t *retry, LTC2990_Handle_t *handle,
+                            uint8_t address, LTC2990_ROLE role, uint32_t now_ms)
+{
+    if (!power_monitor_retry_due(retry, now_ms)) return;
+    if (retry->delay_ms != 0U) g_power_ltc2990_retries++;
+    power_monitor_retry_result(retry, now_ms,
+                               LTC2990_Init(handle, &hi2c2, address, role) == 0);
+}
+
+/* One acquisition pass. Each monitor that has not answered yet is retried on
+ * its own backoff; each monitor that answers is sampled. A missing voltage
+ * monitor never blocks the current monitor, and neither blocks the board. */
+static void sensor_service_monitors(LTC2990_Handle_t *voltage, LTC2990_Handle_t *current,
+                                    uint32_t now_ms, int sample)
+{
+    sensor_try_init(&sensor_voltage_retry, voltage, LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE, now_ms);
+    sensor_try_init(&sensor_current_retry, current, LTC2990_I2C_ADDRESS_CURRENT, CURRENT, now_ms);
+    g_power_ltc2990_present = (sensor_voltage_retry.ready ? POWER_MONITOR_VOLTAGE : 0U) |
+                              (sensor_current_retry.ready ? POWER_MONITOR_CURRENT : 0U);
+    g_power_ltc2990_retry_delay_ms = sensor_voltage_retry.delay_ms > sensor_current_retry.delay_ms
+        ? sensor_voltage_retry.delay_ms : sensor_current_retry.delay_ms;
+    if (!sample) return;
+    if (sensor_voltage_retry.ready) telemetry_ltc2990_update_voltage(voltage);
+    if (sensor_current_retry.ready) telemetry_ltc2990_update_current(current);
+}
+
+static uint32_t sensor_now_ms(void)
+{
+    return (uint32_t)(((uint64_t)tx_time_get() * 1000U) / TX_TIMER_TICKS_PER_SECOND);
+}
+
 void sensor_thread_entry(ULONG entry_input)
 {
     g_sensor_thread_entered++;
@@ -49,32 +87,16 @@ void sensor_thread_entry(ULONG entry_input)
     LTC2990_Handle_t *ltc2990_voltage_handle = ltc_handles->voltage_handle;
     LTC2990_Handle_t *ltc2990_current_handle = ltc_handles->current_handle;
 
-    /* A missing or slow sensor must not take down board networking. Retry
-       failed devices here with a sleep so telemetry remains runnable. */
-    while (LTC2990_Init(ltc2990_voltage_handle, &hi2c2,
-                        LTC2990_I2C_ADDRESS_VOLTAGE, VOLTAGE) != 0)
-    {
-        sensor_update_stack_profile();
-        board_watchdog_progress(BOARD_WATCHDOG_ACQUISITION);
-        tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
-    }
-    while (LTC2990_Init(ltc2990_current_handle, &hi2c2,
-                        LTC2990_I2C_ADDRESS_CURRENT, CURRENT) != 0)
-    {
-        sensor_update_stack_profile();
-        board_watchdog_progress(BOARD_WATCHDOG_ACQUISITION);
-        tx_thread_sleep(TX_TIMER_TICKS_PER_SECOND);
-    }
-    // HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
+    /* One attempt each at startup; a monitor that does not answer is marked
+     * absent in BOARD_HEALTH and retried in the loop with backoff. */
+    sensor_service_monitors(ltc2990_voltage_handle, ltc2990_current_handle, sensor_now_ms(), 0);
 
     for (;;)
     {
         sensor_update_stack_profile();
         board_watchdog_progress(BOARD_WATCHDOG_ACQUISITION);
         tx_thread_sleep(SENSOR_LOG_PERIOD_TICKS);
-        telemetry_ltc2990_update_voltage(ltc2990_voltage_handle);
-        telemetry_ltc2990_update_current(ltc2990_current_handle);
-        // printf("Sensor thread loop\n");
+        sensor_service_monitors(ltc2990_voltage_handle, ltc2990_current_handle, sensor_now_ms(), 1);
     }
 }
 

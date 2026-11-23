@@ -2,6 +2,7 @@
 #include "board_temperature.h"
 #include "board_uptime.h"
 #include "board_watchdog.h"
+#include "power_monitor_retry.h"
 #include "telemetry.h"
 #include "main.h"
 #include <stdint.h>
@@ -14,6 +15,7 @@ extern volatile uint32_t g_telemetry_tlsf_live_bytes, g_telemetry_tlsf_peak_byte
 #endif
 extern uint32_t board_health_can_rx_drops(void);
 extern volatile uint32_t g_telemetry_service_faults;
+extern volatile uint32_t g_power_ltc2990_present, g_power_ltc2990_retry_delay_ms, g_power_ltc2990_retries;
 extern int telemetry_router_enter(void);
 extern int telemetry_router_leave(void);
 
@@ -49,6 +51,9 @@ void board_health_poll(SedsRouter *router)
   words[11] = (uint32_t)seds_memory_admission_rejected();
   words[23] = failures;
   words[1] |= board_temperature_health_flags();
+  /* Power monitors: answering mask, retry delay, retries (power_monitor_retry.h). */
+  words[16] = POWER_MONITOR_HEALTH_TAG; words[17] = g_power_ltc2990_present;
+  words[18] = g_power_ltc2990_retry_delay_ms; words[19] = g_power_ltc2990_retries;
   if (!telemetry_router_enter()) { ++failures; return; }
   /* Network time quality in word 6 bits 24..31 (SEDSnet health byte). */
   {
