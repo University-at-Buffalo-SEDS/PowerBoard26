@@ -259,7 +259,7 @@ to the DAQ card either.
 
 ## Known gaps / bugs found
 
-These are recorded only; firmware is unchanged.
+These were recorded in the audit. G2 was fixed in board-bugfix-20261123; the rest are unchanged.
 
 - **G1 Rate: code vs comments/docs.** Code publishes at 1 Hz
   (`Core/Inc/telemetry_rate.h:9`, `PB_TELEMETRY_RATE_HZ 1.0`; also asserted by
@@ -269,7 +269,13 @@ These are recorded only; firmware is unchanged.
   `README.md` ("five-second source cadence") and
   `docs/sensor-publication-retry-2026-10-26.json` (`sampling_interval_ms: 5000`).
   The README's "default 1 Hz" sentence matches the code.
-- **G2 Time-sync TX stamp watch can latch forever (bug).** In
+- **G2 (fixed, board-bugfix-20261123).** Every path that loses the watched
+  packet now returns `watch_state` to 0: expiry or reset while queued, the
+  bus-off reset of a hardware buffer, a refused or oversize submit, a send
+  refused before the queue (`can_tx_queue_watch_disarm()`), and a completion
+  that never arrives (abandoned after `CAN_TX_MAX_AGE_MS`). The fix is the
+  same in RFBoard26 and gateway-board26; `tests/test_can_tx_queue.py` covers
+  each path. Original finding: **Time-sync TX stamp watch can latch forever (bug).** In
   `Core/Src/can_tx_queue.c`, `can_tx_queue_watch_next()` (line 37) refuses to
   arm while `watch_state` is 2 or 3. State 2 is cleared only when the watched
   packet's last fragment is submitted (lines 127-129); state 3 only by

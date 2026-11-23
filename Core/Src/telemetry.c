@@ -334,7 +334,11 @@ static SedsResult tx_send_with_priority(const uint8_t *bytes, size_t len,
       board_can_arbitration_id(bytes, len, priority,
           sim_probe_packed_data_type(bytes, len), (uint32_t)SEDS_DT_HEARTBEAT, 0x002U);
   if (priority == 254U) can_tx_queue_watch_next();
-  return (can_bus_send_large(bytes, len, can_id) == HAL_OK) ? SEDS_OK : SEDS_IO;
+  const HAL_StatusTypeDef status = can_bus_send_large(bytes, len, can_id);
+  /* A send refused before the queue (recovery) must not leave the watch
+   * armed for the next unrelated packet. */
+  if (priority == 254U) can_tx_queue_watch_disarm();
+  return (status == HAL_OK) ? SEDS_OK : SEDS_IO;
 }
 
 SedsResult tx_send(const uint8_t *bytes, size_t len, void *user) {
