@@ -87,6 +87,19 @@ underglow value, boot identity, recovery floor, commissioning record;
 | Data-ready deadline per channel | 250 ms | `ltc2990.h` `LTC2990_DATA_READY_TIMEOUT_MS` |
 | ThreadX tick | 1000 Hz | `Core/Inc/tx_user.h` `TX_TIMER_TICKS_PER_SECOND`; SysTick reload `SYSTEM_CLOCK/1000-1` in `tx_initialize_low_level.S` |
 
+
+**CAN link format v2** (`Core/Inc/can_link.h`, identical on every board): frames
+carry no payload header. The 11-bit identifier is band (bits 8..7: `0x000`
+controls/ACKs/heartbeat, `0x080` metadata, `0x100` data) | board token (bits
+6..3) | frame kind (bits 2..0: SINGLE, FIRST, MIDDLE, LAST, plus a PAD bit whose
+frame ends in its pad length). A side frame of up to 64 B is one frame; up to
+128 B (`CAN_LINK_MAX_PACKET`, the SDK CAN side frame cap) is FIRST + LAST of 64
+B each. Band and board order arbitration exactly as the version 1 identifiers
+`band | board` did. Reassembly keeps one 128-byte slot per (board, band) stream
+(`CAN_BUS_REASM_SLOTS`); a lost fragment leaves an orphan or a packet that
+fails its SEDSnet CRC32. Version 1 sent a 9-byte `'S' 'D'` header in every
+frame (55 B per fragment).
+
 ## 2. Schedule
 
 ```mermaid
@@ -117,7 +130,7 @@ sequenceDiagram
     end
 
     R->>C: tx_send_with_priority -> can_bus_send_large
-    C->>G: CAN-FD fragments (55-byte payload each), ISR pumps 3 per call
+    C->>G: CAN-FD fragments (64-byte payload each, link v2), ISR pumps 3 per call
     G-->>R: reliable ACKs for BATTERY_* (retransmit 400 ms, 3 retries)
 ```
 
@@ -195,7 +208,7 @@ SEDSnet priority 0, PB data is in the lowest class there.
 | Max packets | 48 | `CAN_TX_MAX_PENDING` |
 | Max packet | 128 B | `CAN_TX_MAX_PACKET` |
 | Max age | 1000 ms, then dropped (counted in `g_can_tx_expired`) | `CAN_TX_MAX_AGE_MS`, `can_tx_queue.c:105-108` |
-| Fragment payload | 55 B; multi-fragment packets use full 64 B frames | `can_tx_queue.h` `CAN_TX_FRAGMENT_PAYLOAD_BYTES`, `can_tx_queue.c:123` |
+| Fragment payload | 64 B, no header (link v2, `can_link.h`); the last frame uses the smallest CAN FD length with in-padding length | `can_tx_queue.h` `CAN_TX_FRAGMENT_PAYLOAD_BYTES`, `can_tx_queue.c:123` |
 | Class reserve | urgent (`id < 0x80`): full queue; metadata (`< 0x100`): -4 packets, -512 B; data: -12 packets, -1536 B | `can_tx_queue.c:70-77` |
 | Ordering | urgent packets are inserted after other urgent packets but ahead of all others; rest FIFO | `can_tx_queue.c:182-191` |
 | Arbitration bands | `0x002` priority >= 200 or `HEARTBEAT`; `0x082` discovery schema (type 10) or priority >= 200 SDT bulk; `0x102` everything else | `Core/Inc/board_can_priority.h:89-101`, `telemetry.c` `tx_send_with_priority` |
@@ -207,7 +220,7 @@ SEDSnet priority 0, PB data is in the lowest class there.
 | ISR copy per interrupt | up to 3 frames | `can_bus.c:1076,1087` |
 | Software ring | 64 frames, drop-oldest; drops counted and reported in `BOARD_HEALTH` word 12 | `can_bus.c:351,450-470` |
 | Thread service | up to 32 frames per loop | `CAN_BUS_RX_SERVICE_BUDGET`, `can_bus.c:1050` |
-| Reassembly | 4 slots, 2048 B, 64 fragments, 1000 ms timeout; when full the stalest slot is evicted | `can_bus.c:544-552,327,600-635,657-668` |
+| Reassembly | 4 slots of 128 B (one two-frame link v2 packet each), 1000 ms timeout; when full the stalest slot is evicted | `can_bus.c:544-552,327,600-635,657-668` |
 | Bus-off recovery | retried every 100 ms; aborts hardware TX buffers and empties the TX queue | `can_bus.c:236,281,291` |
 
 ## 5. BOARD_HEALTH word map
